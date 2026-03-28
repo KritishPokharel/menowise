@@ -32,16 +32,15 @@ interface SymptomModalProps {
   submitting?: boolean;
 }
 
-const symptomMeta: Array<{ key: SymptomKey; label: string; emoji: string }> = [
-  { key: "exhaustion", label: "Physical & mental exhaustion", emoji: "🫠" },
-  { key: "jointPain", label: "Joint & muscular pain", emoji: "🦴" },
-  { key: "hotFlashes", label: "Hot flushes", emoji: "🔥" },
-  { key: "vaginalDryness", label: "Vaginal dryness", emoji: "💧" },
-  { key: "depression", label: "Depression", emoji: "🌧️" },
-  { key: "sleepIssues", label: "Sleep disturbances", emoji: "🌙" }
+const symptomMeta: Array<{ key: SymptomKey; labelKey: string; emoji: string }> = [
+  { key: "exhaustion", labelKey: "checkinSymptomsExhaustion", emoji: "🫠" },
+  { key: "jointPain", labelKey: "checkinSymptomsJointPain", emoji: "🦴" },
+  { key: "hotFlashes", labelKey: "checkinSymptomsHotFlashes", emoji: "🔥" },
+  { key: "vaginalDryness", labelKey: "checkinSymptomsVaginalDryness", emoji: "💧" },
+  { key: "depression", labelKey: "checkinSymptomsDepression", emoji: "🌧️" },
+  { key: "sleepIssues", labelKey: "checkinSymptomsSleepIssues", emoji: "🌙" }
 ];
 
-const scaleLabels = ["None", "Mild", "Moderate", "Severe", "Very severe"];
 const severityColors = ["#6B7280", "#4FAF7A", "#E39C5A", "#D96A4C", "#C2415D"];
 
 export const SymptomModal = ({
@@ -53,6 +52,13 @@ export const SymptomModal = ({
   submitting = false
 }: SymptomModalProps) => {
   const { t } = useTranslation();
+  const scaleLabels = [
+    t("checkinNone"),
+    t("checkinMild"),
+    t("checkinModerate"),
+    t("checkinSevere"),
+    t("checkinVerySevere")
+  ];
   const dragY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -91,9 +97,9 @@ export const SymptomModal = ({
             <View style={styles.handle} />
           </View>
 
-          <Text style={styles.title}>✨ {t("checkin.symptomTitle", { defaultValue: "Log symptoms" })}</Text>
+          <Text style={styles.title}>✨ {t("checkinSymptomTitle")}</Text>
           <Text style={styles.sub}>
-            {t("checkin.symptomScale", { defaultValue: "0=None, 1=Mild, 2=Moderate, 3=Severe, 4=Very severe" })}
+            {t("checkinSymptomScale")}
           </Text>
           <View style={styles.legendRow}>
             {[0, 1, 2, 3, 4].map((n) => (
@@ -105,7 +111,7 @@ export const SymptomModal = ({
             ))}
           </View>
           <Text style={styles.progressOverall}>
-            {t("checkin.progress", {
+            {t("checkinProgress", {
               defaultValue: "{{current}} / {{total}} complete",
               current: answeredCount,
               total: symptomMeta.length
@@ -121,7 +127,7 @@ export const SymptomModal = ({
               <View key={item.key} style={styles.questionBlock}>
                 <View style={styles.qTop}>
                   <Text style={styles.qLabel}>
-                    {item.emoji} {item.label}
+                    {item.emoji} {t(item.labelKey)}
                   </Text>
                   <Text style={styles.progressItem}>
                     {idx + 1}/{symptomMeta.length}
@@ -153,7 +159,7 @@ export const SymptomModal = ({
             ))}
 
             <AppButton
-              label={submitting ? t("loading") : t("checkin.submit", { defaultValue: "Complete check-in" })}
+              label={submitting ? t("loading") : t("checkinSubmit")}
               onPress={onSubmit}
               variant={isComplete ? "primary" : "secondary"}
             />

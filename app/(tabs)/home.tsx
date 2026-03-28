@@ -29,15 +29,61 @@ const moodFromScore = (score: number): MoodTag => {
 
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
+  const profile = useAppStore((s) => s.profile);
   const logs = useAppStore((s) => s.healthLogs);
   const symptoms = useAppStore((s) => s.symptoms);
   const prefs = useAppStore((s) => s.preferences);
   const sections = useAppStore((s) => s.dashboardSections);
-  const profile = useAppStore((s) => s.profile);
   const isLoading = useAppStore((s) => s.isLoading);
   const updateDashboardSections = useAppStore((s) => s.updateDashboardSections);
   const [window, setWindow] = useState<WindowSize>(30);
   const [showCustomize, setShowCustomize] = useState(false);
+
+  const moodEntries = useMemo<MoodEntry[]>(
+    () =>
+      logs
+        .filter((l) => typeof l.moodScore === "number")
+        .map((l, idx) => ({
+          id: `m-${idx}-${l.date}`,
+          mood: moodFromScore(l.moodScore ?? 60),
+          intensity: Math.max(1, Math.min(10, Math.round(((l.moodScore ?? 60) / 100) * 10))),
+          symptoms: [],
+          timestamp: new Date(l.date).toISOString()
+        })),
+    [logs]
+  );
+
+  const latest = logs.at(-1);
+  const avgMood = logs.length
+    ? Math.round(logs.reduce((acc, l) => acc + (l.moodScore ?? 60), 0) / logs.length)
+    : 60;
+
+  const topSymptoms = Object.entries(
+    symptoms.reduce<Record<string, number>>((acc, s) => {
+      acc[s.symptomName] = (acc[s.symptomName] ?? 0) + 1;
+      return acc;
+    }, {})
+  )
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name]) => name);
+
+  const trendMsg = useMemo(() => {
+    if (logs.length < 14) return t("insightKeepLogging");
+    const recent = logs.slice(-7).reduce((sum, l) => sum + (l.moodScore ?? 60), 0) / 7;
+    const prev = logs.slice(-14, -7).reduce((sum, l) => sum + (l.moodScore ?? 60), 0) / 7;
+    const diff = Math.round(recent - prev);
+    if (diff > 1) return t("insightImproving");
+    if (diff < -1) return t("insightDeclined");
+    return t("insightStable");
+  }, [logs, t]);
+
+  const periodDelta = useMemo(() => {
+    if (logs.length < 60) return null;
+    const recent = logs.slice(-30).reduce((sum, l) => sum + (l.moodScore ?? 60), 0) / 30;
+    const prev = logs.slice(-60, -30).reduce((sum, l) => sum + (l.moodScore ?? 60), 0) / 30;
+    return Math.round(recent - prev);
+  }, [logs]);
 
   const trMetric = (key: "bp" | "weight" | "sleep" | "mood") => {
     const v = t(`metrics.${key}`);
@@ -50,131 +96,135 @@ export default function HomeScreen() {
     return v === `symptoms.${key}` ? raw : v;
   };
 
-  const moodEntries = useMemo<MoodEntry[]>(
-    () =>
-      logs
-        .filter((l) => typeof l.moodScore === "number")
-        .map((l, idx) => ({
-          id: `m-${idx}-${l.date}`,
-          mood: moodFromScore(l.moodScore ?? 60),
-          intensity: Math.round(((l.moodScore ?? 60) / 100) * 10),
-          symptoms: [],
-          timestamp: new Date(l.date).toISOString()
-        })),
-    [logs]
-  );
-
-  const latest = logs.at(-1);
-  const avgMood = logs.length
-    ? Math.round(logs.reduce((acc, l) => acc + (l.moodScore ?? 60), 0) / logs.length)
-    : 60;
-  const topSymptoms = Object.entries(
-    symptoms.reduce<Record<string, number>>((acc, s) => {
-      acc[s.symptomName] = (acc[s.symptomName] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([name]) => name);
-  const selectedSectionCount = [sections.showMoodTrend, sections.showWellbeing, sections.showSnapshot, sections.showSymptoms].filter(Boolean).length;
+  const visibleCardCount =
+    Number(sections.showMoodTrend) +
+    Number(sections.showWellbeing) +
+    Number(sections.showSnapshot) +
+    Number(sections.showSymptoms);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <TopBar title={t("todaysDashboard")} subtitle={t("dashboardSubtitle")} />
+        <View style={styles.customizeRow}>
+          <Pressable style={styles.customizeBtn} onPress={() => setShowCustomize(true)}>
+            <Text style={styles.customizeLabel}>{t("customizeDashboard")}</Text>
+          </Pressable>
+        </View>
 
-        {selectedSectionCount === 0 ? (
+        {visibleCardCount === 0 ? (
           <AppCard>
-              <SectionHeader
-              title={t("noMetricsSelectedTitle", { name: profile?.fullName?.trim() || t("notAvailable") })}
-              actionLabel={t("customizeDashboard")}
-              onPressAction={() => setShowCustomize(true)}
-            />
-            <Text style={styles.empty}>{t("noMetricsSelectedSubtitle")}</Text>
+            <Text style={styles.emptyTitle}>
+              {t("noMetricsSelectedTitle", {
+                name: profile?.fullName?.trim() || t("notAvailable")
+              })}
+            </Text>
+            <Text style={styles.emptyText}>{t("noMetricsSelectedSubtitle")}</Text>
           </AppCard>
-        ) : (
-          <>
-            {sections.showMoodTrend ? (
-              <AppCard>
-                <SectionHeader
-                  title={t("moodTrend")}
-                  actionLabel={t("customizeDashboard")}
-                  onPressAction={() => setShowCustomize(true)}
+        ) : null}
+
+        {sections.showMoodTrend ? (
+          <AppCard>
+            <SectionHeader title={t("moodTrend")} />
+            <PillPicker options={[7, 30, 90]} value={window} onChange={setWindow} />
+            <ChartWrapper>
+              {isLoading ? <SkeletonBlock height={160} /> : <MoodTrendChart moods={moodEntries} days={window} label={t("dailyMoodIntensity")} />}
+            </ChartWrapper>
+            {periodDelta !== null ? (
+              <Text style={styles.delta}>
+                {periodDelta >= 0 ? "+" : ""}
+                {formatNumber(periodDelta, i18n.language)} {t("insightsDeltaLabel")}
+              </Text>
+            ) : null}
+          </AppCard>
+        ) : null}
+
+        {sections.showWellbeing ? (
+          <AppCard>
+            <SectionHeader title={t("wellbeingScore")} />
+            <ProgressRing score={avgMood} />
+            <Text style={styles.contextText}>{trendMsg}</Text>
+          </AppCard>
+        ) : null}
+
+        {sections.showSnapshot ? (
+          <AppCard>
+            <SectionHeader title={t("healthSnapshot")} />
+            <View style={styles.grid}>
+              {prefs.showBp ? (
+                <MetricTile
+                  label={trMetric("bp")}
+                  value={
+                    latest?.bpSystolic && latest?.bpDiastolic
+                      ? `${formatNumber(latest.bpSystolic, i18n.language)}/${formatNumber(latest.bpDiastolic, i18n.language)}`
+                      : "--"
+                  }
                 />
-                <PillPicker options={[7, 30, 90]} value={window} onChange={setWindow} />
-                <ChartWrapper>
-                  {isLoading ? <SkeletonBlock height={160} /> : <MoodTrendChart moods={moodEntries} days={window} label={t("dailyMoodIntensity")} />}
-                </ChartWrapper>
-              </AppCard>
+              ) : null}
+              {prefs.showWeight ? (
+                <MetricTile
+                  label={trMetric("weight")}
+                  value={latest?.weight ? formatNumber(latest.weight, i18n.language) : "--"}
+                />
+              ) : null}
+              {prefs.showSleep ? (
+                <MetricTile
+                  label={trMetric("sleep")}
+                  value={latest?.sleepHours ? formatNumber(latest.sleepHours, i18n.language) : "--"}
+                />
+              ) : null}
+              {prefs.showMood ? (
+                <MetricTile
+                  label={trMetric("mood")}
+                  value={latest?.moodScore ? formatNumber(latest.moodScore, i18n.language) : "--"}
+                />
+              ) : null}
+            </View>
+            {!prefs.showBp && !prefs.showWeight && !prefs.showSleep && !prefs.showMood ? (
+              <Text style={styles.emptyText}>{t("homeMetricPrefsEmpty")}</Text>
             ) : null}
+          </AppCard>
+        ) : null}
 
-            {sections.showWellbeing ? (
-              <AppCard>
-                <SectionHeader title={t("wellbeingScore")} />
-                <ProgressRing score={avgMood} />
-              </AppCard>
-            ) : null}
-
-            {sections.showSnapshot ? (
-              <AppCard>
-                <SectionHeader title={t("healthSnapshot")} />
-                <View style={styles.grid}>
-                  {prefs.showBp ? (
-                    <MetricTile
-                      label={trMetric("bp")}
-                      value={
-                        latest?.bpSystolic && latest?.bpDiastolic
-                          ? `${formatNumber(latest.bpSystolic, i18n.language)}/${formatNumber(latest.bpDiastolic, i18n.language)}`
-                          : "--"
-                      }
-                    />
-                  ) : null}
-                  {prefs.showWeight ? (
-                    <MetricTile label={trMetric("weight")} value={latest?.weight ? formatNumber(latest.weight, i18n.language) : "--"} />
-                  ) : null}
-                  {prefs.showSleep ? (
-                    <MetricTile label={trMetric("sleep")} value={latest?.sleepHours ? formatNumber(latest.sleepHours, i18n.language) : "--"} />
-                  ) : null}
-                  {prefs.showMood ? (
-                    <MetricTile label={trMetric("mood")} value={latest?.moodScore ? formatNumber(latest.moodScore, i18n.language) : "--"} />
-                  ) : null}
-                </View>
-              </AppCard>
-            ) : null}
-
-            {sections.showSymptoms ? (
-              <AppCard>
-                <SectionHeader title={t("frequentSymptoms")} />
-                <View style={styles.chipRow}>
-                  {topSymptoms.length ? topSymptoms.map((s) => <ChipTag key={s} label={trSymptom(s)} />) : <Text style={styles.empty}>{t("empty")}</Text>}
-                </View>
-              </AppCard>
-            ) : null}
-          </>
-        )}
+        {sections.showSymptoms ? (
+          <AppCard>
+            <SectionHeader title={t("frequentSymptoms")} />
+            <View style={styles.chips}>
+              {topSymptoms.length ? (
+                topSymptoms.map((item) => <ChipTag key={item} label={trSymptom(item)} />)
+              ) : (
+                <Text style={styles.empty}>{t("empty")}</Text>
+              )}
+            </View>
+          </AppCard>
+        ) : null}
       </ScrollView>
 
       <Modal visible={showCustomize} transparent animationType="slide" onRequestClose={() => setShowCustomize(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowCustomize(false)}>
-          <Pressable style={styles.sheet} onPress={() => undefined}>
+        <View style={styles.overlay}>
+          <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>{t("chooseDashboardCards")}</Text>
             <View style={styles.prefList}>
               <Pressable style={styles.prefRow} onPress={() => updateDashboardSections({ showMoodTrend: !sections.showMoodTrend })}>
-                <Text style={styles.prefLabel}>{`${sections.showMoodTrend ? "✓ " : ""}${t("moodTrend")}`}</Text>
+                <Text style={styles.prefLabel}>{sections.showMoodTrend ? `✓ ${t("moodTrend")}` : t("moodTrend")}</Text>
               </Pressable>
               <Pressable style={styles.prefRow} onPress={() => updateDashboardSections({ showWellbeing: !sections.showWellbeing })}>
-                <Text style={styles.prefLabel}>{`${sections.showWellbeing ? "✓ " : ""}${t("wellbeingScore")}`}</Text>
+                <Text style={styles.prefLabel}>{sections.showWellbeing ? `✓ ${t("wellbeingScore")}` : t("wellbeingScore")}</Text>
               </Pressable>
               <Pressable style={styles.prefRow} onPress={() => updateDashboardSections({ showSnapshot: !sections.showSnapshot })}>
-                <Text style={styles.prefLabel}>{`${sections.showSnapshot ? "✓ " : ""}${t("healthSnapshot")}`}</Text>
+                <Text style={styles.prefLabel}>{sections.showSnapshot ? `✓ ${t("healthSnapshot")}` : t("healthSnapshot")}</Text>
               </Pressable>
               <Pressable style={styles.prefRow} onPress={() => updateDashboardSections({ showSymptoms: !sections.showSymptoms })}>
-                <Text style={styles.prefLabel}>{`${sections.showSymptoms ? "✓ " : ""}${t("frequentSymptoms")}`}</Text>
+                <Text style={styles.prefLabel}>{sections.showSymptoms ? `✓ ${t("frequentSymptoms")}` : t("frequentSymptoms")}</Text>
               </Pressable>
             </View>
-          </Pressable>
-        </Pressable>
+            <View style={styles.sheetAction}>
+              <Pressable style={styles.closeBtn} onPress={() => setShowCustomize(false)}>
+                <Text style={styles.closeText}>{t("save")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -183,10 +233,32 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: spacing.md, paddingBottom: 100 },
+  content: { paddingHorizontal: spacing.md, paddingBottom: 100, gap: spacing.sm },
+  delta: {
+    marginTop: spacing.xs,
+    color: colors.primaryDark,
+    fontWeight: "700"
+  },
+  contextText: {
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: spacing.sm
+  },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   empty: { color: colors.textMuted },
+  customizeRow: { alignItems: "flex-end", marginTop: -8, marginBottom: 2 },
+  customizeBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    backgroundColor: "#FFF9FD",
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  customizeLabel: { color: colors.primaryDark, fontWeight: "700", fontSize: 12 },
+  emptyTitle: { color: colors.text, fontSize: 18, fontWeight: "700" },
+  emptyText: { color: colors.textMuted, marginTop: 6 },
   overlay: { flex: 1, backgroundColor: "rgba(20,16,20,0.25)", justifyContent: "flex-end" },
   sheet: {
     backgroundColor: colors.surface,
@@ -205,5 +277,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm
   },
-  prefLabel: { color: colors.text, fontWeight: "600" }
+  prefLabel: { color: colors.text, fontWeight: "600" },
+  sheetAction: { marginTop: spacing.sm },
+  closeBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12
+  },
+  closeText: { color: "#FFF", fontWeight: "700", fontSize: 15 }
 });

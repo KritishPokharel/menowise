@@ -3,28 +3,22 @@
     "name": "MenoWise",
     "slug": "menowise",
     "scheme": "menowise",
-
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-
     "icon": "./assets/icon.png",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFF3F7"
     },
-
     "assetBundlePatterns": [
       "**/*"
     ],
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ankurgyawali.menowise"
     },
-
     "android": {
       "package": "com.ankurgyawali.menowise",
       "adaptiveIcon": {
@@ -32,9 +26,14 @@
         "backgroundColor": "#FFF3F7"
       }
     },
-
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b01edda0-a91c-400b-896a-f98f4e9292a6"
+      }
+    }
   }
 }

@@ -2,58 +2,74 @@ import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { MoodTrendChart } from "@/components/MoodTrendChart";
 import { TopBar } from "@/components/TopBar";
 import { AppCard } from "@/components/ui/AppCard";
-import { ChartWrapper } from "@/components/ui/ChartWrapper";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ChipTag } from "@/components/ui/ChipTag";
 import { colors, spacing } from "@/constants/theme";
-import { useAppStore } from "@/store/useAppStore";
-import type { MoodEntry } from "@/types";
+
+type DemoArticle = {
+  id: string;
+  category: string;
+  title: string;
+  summary: string;
+  readTime: string;
+};
 
 export default function InsightsScreen() {
   const { t } = useTranslation();
-  const logs = useAppStore((s) => s.healthLogs);
-  const moods = useMemo<MoodEntry[]>(
-    () =>
-      logs
-        .filter((l) => typeof l.moodScore === "number")
-        .map((l, idx) => ({
-          id: `m-${idx}`,
-          mood: l.moodScore && l.moodScore > 70 ? "calm" : "stressed",
-          intensity: Math.max(1, Math.min(10, Math.round(((l.moodScore ?? 50) / 100) * 10))),
-          symptoms: [],
-          timestamp: new Date(l.date).toISOString()
-        })),
-    [logs]
-  );
 
-  const trendMsg = useMemo(() => {
-    if (logs.length < 6) return t("insightKeepLogging");
-    const recent = logs.slice(-7).reduce((sum, l) => sum + (l.moodScore ?? 60), 0) / 7;
-    const prev = logs.slice(-14, -7).reduce((sum, l) => sum + (l.moodScore ?? 60), 0) / 7;
-    if (recent > prev) return t("insightImproving");
-    if (recent < prev) return t("insightDeclined");
-    return t("insightStable");
-  }, [logs, t]);
+  const demoArticles = useMemo<DemoArticle[]>(
+    () => [
+      {
+        id: "a1",
+        category: t("articlesCatMenopause"),
+        title: t("articlesTitleMenopause"),
+        summary: t("articlesSummaryMenopause"),
+        readTime: t("articlesRead5")
+      },
+      {
+        id: "a2",
+        category: t("articlesCatMood"),
+        title: t("articlesTitleMood"),
+        summary: t("articlesSummaryMood"),
+        readTime: t("articlesRead4")
+      },
+      {
+        id: "a3",
+        category: t("articlesCatSleep"),
+        title: t("articlesTitleSleep"),
+        summary: t("articlesSummarySleep"),
+        readTime: t("articlesRead6")
+      }
+    ],
+    [t]
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <TopBar title={t("insights")} subtitle={t("insightsSubtitle")} />
-        <AppCard>
-          <SectionHeader title={t("moodTrend")} />
-          <ChartWrapper>
-            <MoodTrendChart moods={moods} days={30} label={t("dailyMoodIntensity")} />
-          </ChartWrapper>
-        </AppCard>
-        <AppCard>
-          <SectionHeader title={t("trendsTitle")} />
-          <View style={styles.row}>
-            <View style={styles.dot} />
-            <Text style={styles.body}>{trendMsg}</Text>
+        <TopBar title={t("insights")} subtitle={t("insightsArticlesSubtitle")} />
+
+        <AppCard style={styles.infoCard}>
+          <Text style={styles.infoTitle}>{t("insightsArticlesTitle")}</Text>
+          <Text style={styles.infoText}>{t("insightsArticlesDesc")}</Text>
+          <View style={styles.infoTags}>
+            <ChipTag label={t("insightsApiReady")} />
+            <ChipTag label="Supabase" />
           </View>
         </AppCard>
+
+        {demoArticles.map((article) => (
+          <AppCard key={article.id} style={styles.articleCard}>
+            <View style={styles.articleTop}>
+              <Text style={styles.category}>{article.category}</Text>
+              <Text style={styles.meta}>{article.readTime}</Text>
+            </View>
+            <Text style={styles.title}>{article.title}</Text>
+            <Text style={styles.summary}>{article.summary}</Text>
+            <Text style={styles.link}>{t("insightsReadMore")}</Text>
+          </AppCard>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -62,8 +78,58 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: spacing.md, paddingBottom: 100 },
-  row: { flexDirection: "row", alignItems: "flex-start", gap: spacing.xs },
-  dot: { width: 8, height: 8, borderRadius: 999, backgroundColor: colors.primary, marginTop: 6 },
-  body: { color: colors.text, lineHeight: 20, flex: 1 }
+  content: { paddingHorizontal: spacing.md, paddingBottom: 100, gap: spacing.sm },
+  infoCard: {
+    borderWidth: 1,
+    borderColor: "#F0DFE8",
+    backgroundColor: "#FFFAFD"
+  },
+  infoTitle: {
+    color: colors.text,
+    fontWeight: "700",
+    fontSize: 16
+  },
+  infoText: {
+    color: colors.textMuted,
+    marginTop: 6,
+    lineHeight: 20
+  },
+  infoTags: { marginTop: 10, flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  articleCard: {
+    borderWidth: 1,
+    borderColor: "#F0DFE8",
+    backgroundColor: "#FFFFFF"
+  },
+  articleTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8
+  },
+  category: {
+    color: colors.primaryDark,
+    fontWeight: "700",
+    fontSize: 12
+  },
+  meta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  title: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 24
+  },
+  summary: {
+    color: colors.textMuted,
+    marginTop: 8,
+    lineHeight: 21
+  },
+  link: {
+    marginTop: 12,
+    color: colors.primaryDark,
+    fontWeight: "700"
+  }
 });
