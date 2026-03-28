@@ -21,7 +21,9 @@ type ChatItem = { id: string; role: "user" | "assistant"; text: string };
 export const AIAssistantFab = () => {
   const { t } = useTranslation();
   const profile = useAppStore((s) => s.profile);
-  const displayName = profile?.fullName?.trim() || t("notAvailable");
+  const tr = (key: string, defaultValue: string, options?: Record<string, unknown>) =>
+    t(key, { defaultValue, ...(options ?? {}) });
+  const displayName = profile?.fullName?.trim() || tr("notAvailable", "N/A");
 
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("text");
@@ -30,7 +32,7 @@ export const AIAssistantFab = () => {
     {
       id: "greet",
       role: "assistant",
-      text: t("aiFabGreeting", { name: displayName })
+      text: tr("aiFabGreeting", "Hi {{name}}, I’m here to help with emotions, planning, and support.", { name: displayName })
     }
   ]);
   const scale = useRef(new Animated.Value(0.9)).current;
@@ -57,13 +59,17 @@ export const AIAssistantFab = () => {
     setChat((prev) => [
       ...prev,
       { id: `u-${Date.now()}`, role: "user", text: input },
-      { id: `a-${Date.now() + 1}`, role: "assistant", text: `${t("assistantReplyPrefix")} ${t("aiFabActionNudge")}` }
+      {
+        id: `a-${Date.now() + 1}`,
+        role: "assistant",
+        text: `${tr("assistantReplyPrefix", "I hear you. Let’s choose one 10-minute task, one grounding breath cycle, and one gentle boundary for today.")} ${tr("aiFabActionNudge", "Let’s choose one small action for today.")}`
+      }
     ]);
     setText("");
   };
 
   const voiceSuggestion = useMemo(
-    () => `${t("aiFabVoicePrompt")} ${t("aiFabActionNudge")}`,
+    () => `${tr("aiFabVoicePrompt", "Voice note captured.")} ${tr("aiFabActionNudge", "Let’s choose one small action for today.")}`,
     [t]
   );
 
@@ -79,8 +85,8 @@ export const AIAssistantFab = () => {
             <Pressable style={styles.panel} onPress={() => undefined}>
               <View style={styles.header}>
                 <View>
-                  <Text style={styles.title}>{t("aiFabTitle")}</Text>
-                  <Text style={styles.subtitle}>{t("aiFabSubtitle")}</Text>
+                  <Text style={styles.title}>{tr("aiFabTitle", "MenoWise Copilot")}</Text>
+                  <Text style={styles.subtitle}>{tr("aiFabSubtitle", "Calm guidance in text or voice.")}</Text>
                 </View>
                 <Pressable onPress={closePanel}>
                   <Ionicons name="close" size={20} color={colors.textMuted} />
@@ -89,10 +95,10 @@ export const AIAssistantFab = () => {
 
               <View style={styles.modeRow}>
                 <Pressable style={[styles.modeChip, mode === "text" && styles.modeChipActive]} onPress={() => setMode("text")}>
-                  <Text style={[styles.modeLabel, mode === "text" && styles.modeLabelActive]}>{t("aiFabModeText")}</Text>
+                  <Text style={[styles.modeLabel, mode === "text" && styles.modeLabelActive]}>{tr("aiFabModeText", "Chat")}</Text>
                 </Pressable>
                 <Pressable style={[styles.modeChip, mode === "voice" && styles.modeChipActive]} onPress={() => setMode("voice")}>
-                  <Text style={[styles.modeLabel, mode === "voice" && styles.modeLabelActive]}>{t("aiFabModeVoice")}</Text>
+                  <Text style={[styles.modeLabel, mode === "voice" && styles.modeLabelActive]}>{tr("aiFabModeVoice", "Voice")}</Text>
                 </Pressable>
               </View>
 
@@ -113,7 +119,7 @@ export const AIAssistantFab = () => {
                     <TextInput
                       value={text}
                       onChangeText={setText}
-                      placeholder={t("shareFeelPlaceholder")}
+                      placeholder={tr("shareFeelPlaceholder", "Share what you feel...")}
                       placeholderTextColor={colors.textMuted}
                       style={styles.input}
                     />
@@ -127,8 +133,8 @@ export const AIAssistantFab = () => {
                   <Pressable style={styles.micBtn} onPress={() => setChat((prev) => [...prev, { id: `v-${Date.now()}`, role: "assistant", text: voiceSuggestion }])}>
                     <Ionicons name="mic" size={26} color="#FFFFFF" />
                   </Pressable>
-                  <Text style={styles.voiceTitle}>{t("aiFabVoiceTitle")}</Text>
-                  <Text style={styles.voiceSub}>{t("aiFabVoiceSub")}</Text>
+                  <Text style={styles.voiceTitle}>{tr("aiFabVoiceTitle", "Voice check-in")}</Text>
+                  <Text style={styles.voiceSub}>{tr("aiFabVoiceSub", "Tap the mic and share how you feel. I’ll turn it into a practical next step.")}</Text>
                 </View>
               )}
             </Pressable>
