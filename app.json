@@ -17,13 +17,17 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ankurgyawali.menowise"
+      "bundleIdentifier": "com.ankurgyawali.menowise",
+      "runtimeVersion": "1.0.0"
     },
     "android": {
       "package": "com.ankurgyawali.menowise",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFF3F7"
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "plugins": [
@@ -34,6 +38,10 @@
       "eas": {
         "projectId": "b01edda0-a91c-400b-896a-f98f4e9292a6"
       }
+    },
+    "owner": "ankurgyawali",
+    "updates": {
+      "url": "https://u.expo.dev/b01edda0-a91c-400b-896a-f98f4e9292a6"
     }
   }
 }
