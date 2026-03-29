@@ -4,7 +4,8 @@ import { WebView } from "react-native-webview";
 import { useTranslation } from "react-i18next";
 import { colors } from "@/constants/theme";
 
-const ELEVENLABS_AGENT_ID = "agent_0301kmty44s1fwf9vq5b34v5sw9s";
+// Placeholder only. If this component is reused, inject a real agent id at runtime.
+const ELEVENLABS_AGENT_ID = "YOUR_ELEVENLABS_AGENT_ID";
 
 const buildWidgetHtml = () => `<!doctype html>
 <html lang="en">

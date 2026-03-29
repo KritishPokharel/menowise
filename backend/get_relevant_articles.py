@@ -21,6 +21,7 @@ Env vars (set before calling, or replace inline):
 """
 
 import json
+import os
 import re
 
 from flask import Flask, request, jsonify
@@ -28,12 +29,11 @@ from flask_cors import CORS
 from openai import OpenAI
 from supabase import create_client, Client
 
-from supabase_key import secret_key, project_url
-
 # ── Config ─────────────────────────────────────────────────────────────────────
-SUPABASE_URL = project_url
-SUPABASE_KEY = secret_key
-NVIDIA_API_KEY = api_key  # Replace with your actual NVIDIA API key or set as env var
+SUPABASE_URL = os.getenv("SUPABASE_URL", "YOUR_SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "YOUR_SUPABASE_KEY")
+# Set your NVIDIA API key in the environment before running this service.
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "YOUR_NVIDIA_API_KEY")
 
 # Language code → stored value mapping (pipeline stores full word)
 LANGUAGE_MAP = {
@@ -49,6 +49,15 @@ nvidia_client = OpenAI(
     api_key=NVIDIA_API_KEY,
 )
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+app = Flask(__name__)
+CORS(app)
+
+if (
+    SUPABASE_URL == "YOUR_SUPABASE_URL"
+    or SUPABASE_KEY == "YOUR_SUPABASE_KEY"
+    or NVIDIA_API_KEY == "YOUR_NVIDIA_API_KEY"
+):
+    print("Warning: backend env vars are using placeholders. Set SUPABASE_URL, SUPABASE_KEY, and NVIDIA_API_KEY.")
 
 
 # ── Step 1 — Fetch all unique tags from Supabase ───────────────────────────────

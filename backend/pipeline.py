@@ -33,6 +33,7 @@ CREATE INDEX IF NOT EXISTS articles_language_idx ON articles (language);
 """
 
 import json
+import os
 import re
 import sys
 
@@ -40,14 +41,12 @@ import fitz  # pymupdf
 from openai import OpenAI
 from supabase import create_client, Client
 
-from supabase_key import secret_key, project_url
-
 # ── Config ────────────────────────────────────────────────────────────────────
-SUPABASE_URL = project_url
-NVIDIA_API_KEY = (
-    "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"
-)
-PDF_PATH = "New_Docs.pdf"
+SUPABASE_URL = os.getenv("SUPABASE_URL", "YOUR_SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "YOUR_SUPABASE_KEY")
+# Set your NVIDIA API key in the environment before running this script.
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "YOUR_NVIDIA_API_KEY")
+PDF_PATH = ""  # supase base path or local path to PDF
 NVIDIA_MODEL = "meta/llama-3.3-70b-instruct"
 
 # ── Clients ───────────────────────────────────────────────────────────────────
@@ -55,7 +54,7 @@ nvidia = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
     api_key=NVIDIA_API_KEY,
 )
-supabase: Client = create_client(SUPABASE_URL, secret_key)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # ── PDF Extraction ────────────────────────────────────────────────────────────
@@ -81,7 +80,11 @@ def _join_wrapped_titles(text: str) -> str:
         if is_title and not stripped.endswith("?"):
             next_stripped = lines[i + 1].strip() if i + 1 < len(lines) else ""
             # Only join if the next line is not itself a new article heading
-            if next_stripped and not en_start.match(next_stripped) and not ne_start.match(next_stripped):
+            if (
+                next_stripped
+                and not en_start.match(next_stripped)
+                and not ne_start.match(next_stripped)
+            ):
                 result.append(stripped + " " + next_stripped)
                 i += 2
                 continue
@@ -192,6 +195,16 @@ def update_master_tags(new_tags: list[str]) -> None:
 
 # ── Main Pipeline ─────────────────────────────────────────────────────────────
 def main() -> None:
+    if (
+        SUPABASE_URL == "YOUR_SUPABASE_URL"
+        or SUPABASE_KEY == "YOUR_SUPABASE_KEY"
+        or NVIDIA_API_KEY == "YOUR_NVIDIA_API_KEY"
+    ):
+        print(
+            "Missing backend configuration. Set SUPABASE_URL, SUPABASE_KEY, and NVIDIA_API_KEY."
+        )
+        sys.exit(1)
+
     print("=" * 60)
     print("Nepal-US Hackathon Article Pipeline")
     print("=" * 60)

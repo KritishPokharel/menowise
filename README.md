@@ -50,6 +50,23 @@ ELEVENLABS_AGENT_ID=YOUR_ELEVENLABS_AGENT_ID
 PUBLIC_BASE_URL=YOUR_PUBLIC_BACKEND_URL
 ```
 
+### 5. Start the backend scripts
+
+From the project root:
+
+```bash
+python3 backend/pipeline.py
+python3 backend/get_relevant_articles.py
+```
+
+Note: the relevant-articles script in this repo is named `get_relevant_articles.py`.
+
+### 6. Build the insights cache from the PDF
+
+```bash
+npm run build:insights-cache
+```
+
 ## Technologies Used
 
 - React Native
