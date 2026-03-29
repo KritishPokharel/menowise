@@ -1,6 +1,6 @@
 # MenoWise
 
-MenoWise is a multilingual menopause support app built with React Native on the frontend and Python Flask services on the backend with OpenAI models used as LLM. MenoWise is a multilingual menopause support app built with React Native on the frontend and Python Flask services on the backend. It combines daily check-ins, symptoms trackers, insights, community support, family support, and an AI voice/chat companion into one platform to provide early care and support for women going through menopausal symptoms.
+MenoWise is a multilingual menopause support mobile app built with React Native on the frontend and Python Flask services on the backend with OpenAI models used as LLM. MenoWise is a multilingual menopause support app built with React Native on the frontend and Python Flask services on the backend. It combines daily check-ins, symptoms trackers, insights, community support, family support, and an AI voice/chat companion into one platform to provide early care and support for women going through menopausal symptoms.
 
 ## Setup
 
