@@ -50,14 +50,6 @@ ELEVENLABS_AGENT_ID=YOUR_ELEVENLABS_AGENT_ID
 PUBLIC_BASE_URL=YOUR_PUBLIC_BACKEND_URL
 ```
 
-### 5. Build the insights cache from the PDF
-
-```bash
-npm run build:insights-cache
-```
-
-This generates cached article data from `docs_file.pdf` so the app can load insights locally.
-
 ## Technologies Used
 
 - React Native
