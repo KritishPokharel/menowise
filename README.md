@@ -92,8 +92,6 @@ npm run build:insights-cache
 
 ## Demo Video/Link
 
-**Demo Link**: 
-
 ## Try MenoWise Live
 
 MenoWise is a native iOS/Android app — not a website. Direct APK sharing bypasses Android security checks and isn't recommended, iOS doesn't allow app installs outside the App Store without special provisioning, and official store publishing requires paid developer accounts ($99/year for iOS, $25 for Android).
