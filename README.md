@@ -94,8 +94,27 @@ npm run build:insights-cache
 
 **Demo Link**: 
 
-MenoWise is a native iOS/Android app and isn't optimized for web browsers, so traditional hosting isn't straightforward. Direct APK sharing for Android bypasses security checks and isn't recommended, and iOS doesn't allow app distribution outside the App Store without special provisioning. Official app store publishing requires paid developer accounts, so we've included a demo video instead — but if you'd like to try it live, reach out and we can enable remote access to a simulator thorugh our personal device.
+## Try MenoWise Live
 
+MenoWise is a native iOS/Android app — not a website. Direct APK sharing bypasses Android security checks and isn't recommended, iOS doesn't allow app installs outside the App Store without special provisioning, and official store publishing requires paid developer accounts ($99/year for iOS, $25 for Android).
+
+To let you try it without any of that, we're running a live development server you can connect to via the **Expo Go** app:
+
+### Steps
+
+1. Download **Expo Go** from the [App Store](https://apps.apple.com/app/expo-go/id982107779) (iOS) or [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent) (Android)
+2. We prefer you to run it on ios.
+3. Scan the QR code below
+   - **iOS**: use the Camera app, then tap the notification
+   - **Android**: use the Scan QR Code button inside Expo Go
+4. The app will load on your device
+
+<img width="237" height="234" alt="QR_Code" src="https://github.com/user-attachments/assets/2dbaeb2a-ad21-40ff-a16d-8a76106b0047" />
+
+
+> **Note:** The server runs on our local machine, so it needs to be online when you try. If the QR doesn't work, reach out and we'll spin it up — or we can enable remote access to a simulator on our personal device.
+
+**Demo Video**
 https://github.com/user-attachments/assets/a7db9607-db07-4403-8bd6-e3d24d1c87a8
 
 
