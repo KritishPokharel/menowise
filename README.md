@@ -106,7 +106,8 @@ To let you try it without any of that, we're running a live development server y
    - **Android**: use the Scan QR Code button inside Expo Go
 4. The app will load on your device
 
-<img width="237" height="234" alt="QR_Code" src="https://github.com/user-attachments/assets/2dbaeb2a-ad21-40ff-a16d-8a76106b0047" />
+<img width="241" height="234" alt="Screenshot 2026-03-29" src="https://github.com/user-attachments/assets/638f193f-539c-4f57-a57e-14bef45c56a9" />
+
 
 
 > **Note:** The server runs on our local machine, so it needs to be online when you try. If the QR doesn't work, reach out and we'll spin it up — or we can enable remote access to a simulator on our personal device.
