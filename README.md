@@ -92,7 +92,9 @@ npm run build:insights-cache
 
 ## Demo Video/Link
 
-**Demo Link: MenoWise is a native iOS/Android app and isn't optimized for web browsers, so traditional hosting isn't straightforward. Direct APK sharing for Android bypasses security checks and isn't recommended, and iOS doesn't allow app distribution outside the App Store without special provisioning. Official app store publishing requires paid developer accounts, so we've included a demo video instead — but if you'd like to try it live, reach out and we can enable remote access to a simulator thorugh our personal device.**
+**Demo Link**: 
+
+MenoWise is a native iOS/Android app and isn't optimized for web browsers, so traditional hosting isn't straightforward. Direct APK sharing for Android bypasses security checks and isn't recommended, and iOS doesn't allow app distribution outside the App Store without special provisioning. Official app store publishing requires paid developer accounts, so we've included a demo video instead — but if you'd like to try it live, reach out and we can enable remote access to a simulator thorugh our personal device.
 
 https://github.com/user-attachments/assets/a7db9607-db07-4403-8bd6-e3d24d1c87a8
 
