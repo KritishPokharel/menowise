@@ -46,7 +46,6 @@ Set these environment variables before running it:
 ```bash
 eleven_labs_api_key=YOUR_ELEVENLABS_API_KEY
 ELEVENLABS_AGENT_ID=YOUR_ELEVENLABS_AGENT_ID
-PUBLIC_BASE_URL=YOUR_PUBLIC_BACKEND_URL
 ```
 
 ### 5. Start the backend scripts
