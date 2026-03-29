@@ -164,10 +164,7 @@ export default function OnboardingScreen() {
   const showCycleSteps = stage === "pre-menopause" || stage === "perimenopause";
 
   const steps = useMemo<StepId[]>(() => {
-    const base: StepId[] = ["welcome"];
-    if (!user) {
-      base.push("account");
-    }
+    const base: StepId[] = user ? [] : ["welcome", "account"];
     base.push("name", "birth-year", "life-stage");
     if (showCycleSteps) {
       base.push("last-period", "cycle-info");

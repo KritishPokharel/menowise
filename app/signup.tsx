@@ -13,6 +13,7 @@ import { useAppStore } from "@/store/useAppStore";
 export default function SignupScreen() {
   const { t } = useTranslation();
   const signUp = useAppStore((s) => s.signUp);
+  const signIn = useAppStore((s) => s.signIn);
   const isLoading = useAppStore((s) => s.isLoading);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +31,14 @@ export default function SignupScreen() {
       setError(result.error);
       return;
     }
-    router.replace("/login" as any);
+
+    const loginResult = await signIn(email.trim(), password);
+    if (loginResult.error) {
+      router.replace("/login" as any);
+      return;
+    }
+
+    router.replace("/onboarding" as any);
   };
 
   return (
