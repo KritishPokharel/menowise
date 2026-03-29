@@ -136,7 +136,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     if (session?.user) {
       await get().refreshUserData();
-      await get().seedDummyData();
     }
 
     set({ isBootstrapping: false, isLoading: false });

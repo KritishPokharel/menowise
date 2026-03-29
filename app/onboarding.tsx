@@ -8,7 +8,6 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
-  ListRenderItemInfo,
   Platform,
   Pressable,
   StyleSheet,
@@ -71,8 +70,6 @@ interface OnboardingOutput {
   emotional_state: string;
 }
 
-const itemHeight = 48;
-const wheelHeight = 220;
 const symptomOptions: Array<{ key: SymptomTag | "other"; icon: keyof typeof Ionicons.glyphMap; category: "Physical" | "Emotional" | "Sleep" }> = [
   { key: "hot-flashes", icon: "flame-outline", category: "Physical" },
   { key: "joint-pain", icon: "body-outline", category: "Physical" },
@@ -154,7 +151,6 @@ export default function OnboardingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loadedDraft, setLoadedDraft] = useState(false);
 
-  const listRef = useRef<FlatList<number>>(null);
   const animOpacity = useRef(new Animated.Value(1)).current;
   const animY = useRef(new Animated.Value(0)).current;
   const age = new Date().getFullYear() - birthYear;
@@ -343,12 +339,6 @@ export default function OnboardingScreen() {
     symptoms.length
   ]);
 
-  const onYearMomentumEnd = (offsetY: number) => {
-    const index = Math.round(offsetY / itemHeight);
-    const selected = years[Math.max(0, Math.min(years.length - 1, index))];
-    setBirthYear(selected);
-  };
-
   const next = () => {
     if (!canContinue) return;
     if (currentStep === "account" && password !== confirmPassword) {
@@ -520,28 +510,29 @@ export default function OnboardingScreen() {
                 <View style={styles.stepWrap}>
                   <Text style={styles.title}>What year were you born?</Text>
                   <Text style={styles.subtitle}>We’ll use this to tailor insights and care recommendations.</Text>
-                  <View style={styles.wheelWrap}>
-                    <View pointerEvents="none" style={styles.selectorOverlay} />
-                    <FlatList
-                      ref={listRef}
-                      data={years}
-                      keyExtractor={(item) => String(item)}
-                      getItemLayout={(_, index) => ({ length: itemHeight, offset: itemHeight * index, index })}
-                      initialScrollIndex={24}
-                      snapToInterval={itemHeight}
-                      decelerationRate="fast"
-                      showsVerticalScrollIndicator={false}
-                      contentContainerStyle={styles.wheelContent}
-                      onMomentumScrollEnd={(e) => onYearMomentumEnd(e.nativeEvent.contentOffset.y)}
-                      renderItem={({ item }: ListRenderItemInfo<number>) => (
-                        <View style={styles.yearRow}>
-                          <Text style={[styles.yearText, item === birthYear && styles.yearTextActive]}>
-                            {formatNumber(item, i18n.language)}
-                          </Text>
-                        </View>
-                      )}
-                      style={{ maxHeight: wheelHeight }}
-                    />
+                  <View style={styles.yearPickerCard}>
+                    <Text style={styles.yearPickerLabel}>Birth year</Text>
+                    <View style={styles.yearStepper}>
+                      <Pressable
+                        style={styles.yearStepperBtn}
+                        onPress={() => {
+                          selectionFeedback();
+                          setBirthYear((v) => Math.max(1940, v - 1));
+                        }}
+                      >
+                        <Text style={styles.yearStepperBtnText}>-</Text>
+                      </Pressable>
+                      <Text style={styles.yearValue}>{formatNumber(birthYear, i18n.language)}</Text>
+                      <Pressable
+                        style={styles.yearStepperBtn}
+                        onPress={() => {
+                          selectionFeedback();
+                          setBirthYear((v) => Math.min(new Date().getFullYear() - 12, v + 1));
+                        }}
+                      >
+                        <Text style={styles.yearStepperBtnText}>+</Text>
+                      </Pressable>
+                    </View>
                   </View>
                   <Text style={styles.helperText}>Age {formatNumber(age, i18n.language)}</Text>
                 </View>
@@ -891,29 +882,31 @@ const styles = StyleSheet.create({
   },
   optionLabel: { color: colors.text, fontWeight: "600" },
   optionLabelActive: { color: "#FFFFFF" },
-  wheelWrap: {
+  yearPickerCard: {
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: "#FFF9FD",
-    overflow: "hidden"
+    padding: spacing.md,
+    gap: spacing.sm
   },
-  wheelContent: { paddingVertical: (wheelHeight - itemHeight) / 2 },
-  selectorOverlay: {
-    position: "absolute",
-    left: 10,
-    right: 10,
-    top: wheelHeight / 2 - itemHeight / 2,
-    height: itemHeight,
-    borderRadius: radius.md,
-    backgroundColor: "transparent",
-    borderWidth: 2,
-    borderColor: colors.primary,
-    zIndex: 0
+  yearPickerLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase"
   },
-  yearRow: { height: itemHeight, alignItems: "center", justifyContent: "center" },
-  yearText: { color: colors.textMuted, fontSize: 20, fontWeight: "500" },
-  yearTextActive: { color: colors.text, fontWeight: "800" },
+  yearStepper: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  yearStepperBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FBE1ED"
+  },
+  yearStepperBtnText: { color: colors.primaryDark, fontSize: 24, fontWeight: "700" },
+  yearValue: { color: colors.text, fontSize: 30, fontWeight: "800" },
   row: { flexDirection: "row", gap: spacing.sm },
   half: { flex: 1 },
   smallWheel: {

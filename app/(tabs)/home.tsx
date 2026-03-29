@@ -213,6 +213,18 @@ export default function HomeScreen() {
   );
 
   const latest = logs.at(-1);
+  const hasAnyLogs = logs.length > 0;
+  const hasMoodData = moodEntries.length > 0;
+  const hasSymptomData = symptoms.length > 0;
+  const hasSnapshotData = Boolean(
+    latest &&
+      (latest.bpSystolic ||
+        latest.bpDiastolic ||
+        latest.weight ||
+        latest.sleepHours ||
+        latest.moodScore)
+  );
+  const hasWellbeingData = hasAnyLogs || hasSymptomData;
 
   const wellbeingScore = useMemo(
     () => computeWellbeing(logs, symptoms),
@@ -528,7 +540,7 @@ export default function HomeScreen() {
           </AppCard>
         ) : null}
 
-        {sections.showMoodTrend ? (
+        {sections.showMoodTrend && hasMoodData ? (
           <AppCard>
             <SectionHeader title={t("moodTrend")} />
             <PillPicker options={[7, 30, 90]} value={window} onChange={setWindow} />
@@ -544,7 +556,7 @@ export default function HomeScreen() {
           </AppCard>
         ) : null}
 
-        {sections.showWellbeing ? (
+        {sections.showWellbeing && hasWellbeingData ? (
           <AppCard>
             <SectionHeader title={t("wellbeingScore")} />
             <ProgressRing score={wellbeingScore} />
@@ -552,7 +564,7 @@ export default function HomeScreen() {
           </AppCard>
         ) : null}
 
-        {sections.showSnapshot ? (
+        {sections.showSnapshot && hasSnapshotData ? (
           <AppCard>
             <SectionHeader title={t("healthSnapshot")} />
             <View style={styles.grid}>
@@ -582,7 +594,7 @@ export default function HomeScreen() {
           </AppCard>
         ) : null}
 
-        {sections.showSymptoms ? (
+        {sections.showSymptoms && hasSymptomData ? (
           <AppCard>
             <SectionHeader title={t("frequentSymptoms")} />
             <View style={styles.chips}>
@@ -596,59 +608,65 @@ export default function HomeScreen() {
         ) : null}
 
         {/* Alerts & Insights */}
-        <AppCard>
-          <SectionHeader title={t("homeAlertsTitle", { defaultValue: "Alerts & insights" })} />
-          <View style={styles.alertStack}>
-            <View style={styles.alertRow}>
-              <View style={[styles.alertIcon, { backgroundColor: "#FDE7F1" }]}>
-                <Ionicons name="analytics-outline" size={14} color={colors.primaryDark} />
-              </View>
-              <Text style={styles.alertText}>{trendMsg}</Text>
-            </View>
-            <View style={styles.alertRow}>
-              <View style={[styles.alertIcon, { backgroundColor: "#FFF2E5" }]}>
-                <Ionicons name="moon-outline" size={14} color="#C2743E" />
-              </View>
-              <Text style={styles.alertText}>
-                {t("homeSleepAlert", { defaultValue: "Sleep trend needs attention on short-sleep days." })}
-              </Text>
-            </View>
-            <View style={styles.alertRow}>
-              <View style={[styles.alertIcon, { backgroundColor: "#EAF6EE" }]}>
-                <Ionicons name="medkit-outline" size={14} color="#3A8C63" />
-              </View>
-              <Text style={styles.alertText}>
-                {t("homeTopSymptom", { defaultValue: "Top symptom lately: {{symptom}}", symptom: topSymptomLabel })}
-              </Text>
-            </View>
-
-            {/* Dynamic: partner not sharing → communication article */}
-            {partnerShared === "no" ? (
-              <Pressable style={styles.alertRow} onPress={() => router.push("/(tabs)/insights" as any)}>
-                <View style={[styles.alertIcon, { backgroundColor: "#E8EDFD" }]}>
-                  <Ionicons name="chatbubbles-outline" size={14} color="#5468B7" />
+        {hasAnyLogs || hasSymptomData ? (
+          <AppCard>
+            <SectionHeader title={t("homeAlertsTitle", { defaultValue: "Alerts & insights" })} />
+            <View style={styles.alertStack}>
+              {hasMoodData ? (
+                <View style={styles.alertRow}>
+                  <View style={[styles.alertIcon, { backgroundColor: "#FDE7F1" }]}>
+                    <Ionicons name="analytics-outline" size={14} color={colors.primaryDark} />
+                  </View>
+                  <Text style={styles.alertText}>{trendMsg}</Text>
                 </View>
-                <Text style={[styles.alertText, styles.alertLink]}>
-                  {t("insightPartnerComm", { defaultValue: "You chose not to share with your partner. Read an article on communicating during menopause." })}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </Pressable>
-            ) : null}
-
-            {/* Dynamic: low wellbeing → self-care article */}
-            {wellbeingScore < 70 ? (
-              <Pressable style={styles.alertRow} onPress={() => router.push("/(tabs)/insights" as any)}>
-                <View style={[styles.alertIcon, { backgroundColor: "#FDE7F1" }]}>
-                  <Ionicons name="leaf-outline" size={14} color={colors.primaryDark} />
+              ) : null}
+              {logs.some((l) => l.sleepHours != null) ? (
+                <View style={styles.alertRow}>
+                  <View style={[styles.alertIcon, { backgroundColor: "#FFF2E5" }]}>
+                    <Ionicons name="moon-outline" size={14} color="#C2743E" />
+                  </View>
+                  <Text style={styles.alertText}>
+                    {t("homeSleepAlert", { defaultValue: "Sleep trend needs attention on short-sleep days." })}
+                  </Text>
                 </View>
-                <Text style={[styles.alertText, styles.alertLink]}>
-                  {t("insightLowWellbeing", { defaultValue: "Your wellbeing score is {{score}}. Explore self-care tips to feel better.", score: wellbeingScore })}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-              </Pressable>
-            ) : null}
-          </View>
-        </AppCard>
+              ) : null}
+              {hasSymptomData ? (
+                <View style={styles.alertRow}>
+                  <View style={[styles.alertIcon, { backgroundColor: "#EAF6EE" }]}>
+                    <Ionicons name="medkit-outline" size={14} color="#3A8C63" />
+                  </View>
+                  <Text style={styles.alertText}>
+                    {t("homeTopSymptom", { defaultValue: "Top symptom lately: {{symptom}}", symptom: topSymptomLabel })}
+                  </Text>
+                </View>
+              ) : null}
+
+              {partnerShared === "no" ? (
+                <Pressable style={styles.alertRow} onPress={() => router.push("/(tabs)/insights" as any)}>
+                  <View style={[styles.alertIcon, { backgroundColor: "#E8EDFD" }]}>
+                    <Ionicons name="chatbubbles-outline" size={14} color="#5468B7" />
+                  </View>
+                  <Text style={[styles.alertText, styles.alertLink]}>
+                    {t("insightPartnerComm", { defaultValue: "You chose not to share with your partner. Read an article on communicating during menopause." })}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              ) : null}
+
+              {hasWellbeingData && wellbeingScore < 70 ? (
+                <Pressable style={styles.alertRow} onPress={() => router.push("/(tabs)/insights" as any)}>
+                  <View style={[styles.alertIcon, { backgroundColor: "#FDE7F1" }]}>
+                    <Ionicons name="leaf-outline" size={14} color={colors.primaryDark} />
+                  </View>
+                  <Text style={[styles.alertText, styles.alertLink]}>
+                    {t("insightLowWellbeing", { defaultValue: "Your wellbeing score is {{score}}. Explore self-care tips to feel better.", score: wellbeingScore })}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              ) : null}
+            </View>
+          </AppCard>
+        ) : null}
 
         {/* Talk to someone — counselor only */}
         <AppCard>
