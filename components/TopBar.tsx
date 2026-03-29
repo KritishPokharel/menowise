@@ -40,6 +40,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.sm,
+    marginTop: spacing.sm,
     marginBottom: spacing.md
   },
   title: { color: colors.text, fontSize: 28, fontWeight: "800", letterSpacing: -0.3 },

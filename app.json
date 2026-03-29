@@ -18,10 +18,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ankurgyawali.menowise",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "MenoWise uses the microphone so you can talk with the AI assistant."
+      },
       "runtimeVersion": "1.0.0"
     },
     "android": {
       "package": "com.ankurgyawali.menowise",
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFF3F7"

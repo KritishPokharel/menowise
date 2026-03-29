@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Easing, Image, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
@@ -57,6 +57,7 @@ export default function CheckInScreen() {
   const [isComplete, setIsComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [symptomResponses, setSymptomResponses] = useState<SymptomResponses>(initialSymptomResponses);
+  const [bpValue, setBpValue] = useState("");
   const [slideWidth, setSlideWidth] = useState(320);
   const translateX = useRef(new Animated.Value(0)).current;
 
@@ -93,9 +94,24 @@ export default function CheckInScreen() {
 
   const onSubmit = async () => {
     if (!selectedMood || !allSymptomsAnswered) return;
+    const normalizedBp = bpValue.trim();
+    let bpSystolic: number | undefined;
+    let bpDiastolic: number | undefined;
+
+    if (normalizedBp.length > 0) {
+      const match = normalizedBp.match(/^(\d{2,3})\s*\/\s*(\d{2,3})$/);
+      if (!match) {
+        Alert.alert(t("checkinBpInvalidTitle"), t("checkinBpInvalidMsg"));
+        return;
+      }
+
+      bpSystolic = Number(match[1]);
+      bpDiastolic = Number(match[2]);
+    }
+
     setSubmitting(true);
     const date = new Date().toISOString().slice(0, 10);
-    await addHealthLog({ date, moodScore: moodMap[selectedMood] });
+    await addHealthLog({ date, moodScore: moodMap[selectedMood], bpSystolic, bpDiastolic });
     await Promise.all([
       addSymptom("fatigue", symptomResponses.exhaustion),
       addSymptom("joint-pain", symptomResponses.jointPain),
@@ -198,6 +214,19 @@ export default function CheckInScreen() {
             <AppCard style={styles.symptomCard}>
               <Text style={styles.symptomCardTitle}>🩺 {t("checkinSymptomTitle")}</Text>
               <Text style={styles.symptomCardSub}>{t("checkinSymptomCardSub")}</Text>
+              <View style={styles.bpBlock}>
+                <Text style={styles.bpLabel}>{t("checkinBpPrompt")}</Text>
+                <TextInput
+                  value={bpValue}
+                  onChangeText={setBpValue}
+                  placeholder={t("bpExample")}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numbers-and-punctuation"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.bpInput}
+                />
+              </View>
               <View style={styles.symptomCtaWrap}>
                 <Text style={styles.symptomCtaHint}>
                   {canOpenSymptoms ? t("checkinReadyToComplete") : t("checkinCompleteConversationFirst")}
@@ -253,6 +282,7 @@ export default function CheckInScreen() {
                 setPartnerShared(null);
                 setChildrenShared(null);
                 setSymptomResponses(initialSymptomResponses);
+                setBpValue("");
                 setIsComplete(false);
                 translateX.setValue(0);
               }}
@@ -320,6 +350,19 @@ const styles = StyleSheet.create({
   symptomCard: { borderRadius: 24, backgroundColor: "#FFFFFF" },
   symptomCardTitle: { color: colors.text, fontWeight: "800", fontSize: 20 },
   symptomCardSub: { color: colors.textMuted, marginTop: 6 },
+  bpBlock: { marginTop: spacing.md, gap: 8 },
+  bpLabel: { color: colors.text, fontWeight: "700" },
+  bpInput: {
+    borderWidth: 1,
+    borderColor: "#F0D7E3",
+    borderRadius: 16,
+    backgroundColor: "#FFF7FB",
+    color: colors.text,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontWeight: "600"
+  },
   symptomCtaWrap: { marginTop: spacing.sm, gap: 8 },
   symptomCtaHint: { color: colors.primaryDark, fontWeight: "600" },
   doneScroll: { paddingBottom: 100, gap: spacing.md },

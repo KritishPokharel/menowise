@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Alert, Animated, Easing, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,6 +8,8 @@ import { AppButton } from "@/components/AppButton";
 import { MoodTrendChart } from "@/components/MoodTrendChart";
 import { PillPicker } from "@/components/PillPicker";
 import { TopBar } from "@/components/TopBar";
+import { OptionButton } from "@/components/checkin/OptionButton";
+import { SymptomModal, type SymptomKey, type SymptomResponses } from "@/components/checkin/SymptomModal";
 import { AppCard } from "@/components/ui/AppCard";
 import { ChartWrapper } from "@/components/ui/ChartWrapper";
 import { ChipTag } from "@/components/ui/ChipTag";
@@ -18,9 +20,13 @@ import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { colors, spacing } from "@/constants/theme";
 import { useAppStore } from "@/store/useAppStore";
 import type { MoodEntry, MoodTag } from "@/types";
+import { selectionFeedback } from "@/utils/feedback";
 import { formatNumber } from "@/utils/formatNumber";
 
 type WindowSize = 7 | 30 | 90;
+type MoodLevel = "low" | "okay" | "good" | "great";
+type ShareWithPartner = "yes" | "no" | "prefer-not";
+type ShareWithChildren = "yes" | "no" | "na";
 
 const moodFromScore = (score: number): MoodTag => {
   if (score >= 80) return "motivated";
@@ -28,6 +34,76 @@ const moodFromScore = (score: number): MoodTag => {
   if (score >= 60) return "calm";
   if (score >= 50) return "stressed";
   return "anxious";
+};
+
+const moodMap: Record<MoodLevel, number> = { low: 40, okay: 60, good: 75, great: 90 };
+
+const symptomScaleToText = (score: number, t: (key: string) => string) => {
+  if (score <= 1) return t("checkinMild");
+  if (score === 2) return t("checkinModerate");
+  return t("checkinSevere");
+};
+
+const symptomSeverityColor = (score: number) => {
+  if (score <= 1) return "#4FAF7A";
+  if (score === 2) return "#E39C5A";
+  return "#D95F5F";
+};
+
+const initialSymptomResponses: SymptomResponses = {
+  exhaustion: -1,
+  jointPain: -1,
+  hotFlashes: -1,
+  sleepIssues: -1,
+  vaginalDryness: -1,
+  depression: -1
+};
+
+/**
+ * Wellbeing score (0-100) computed from Supabase data:
+ *   Mood        40%  — latest mood_score (0-100)
+ *   Symptoms    35%  — average recent intensity inverted: 100 - (avgIntensity / 4) * 100
+ *   Sleep       15%  — distance from optimal 7.5h, capped at 100
+ *   Weight      10%  — stability (low std-dev over last 7 logs = 100)
+ */
+const computeWellbeing = (
+  logs: { moodScore?: number | null; sleepHours?: number | null; weight?: number | null }[],
+  symptomRows: { intensity: number }[]
+): number => {
+  // Mood component (40%)
+  const recentMoods = logs.slice(-7);
+  const moodAvg = recentMoods.length
+    ? recentMoods.reduce((s, l) => s + (l.moodScore ?? 60), 0) / recentMoods.length
+    : 60;
+  const moodScore = Math.min(100, Math.max(0, moodAvg));
+
+  // Symptom component (35%) — lower intensity = better
+  const recentSymptoms = symptomRows.slice(0, 30); // already sorted desc by created_at
+  const avgIntensity = recentSymptoms.length
+    ? recentSymptoms.reduce((s, r) => s + r.intensity, 0) / recentSymptoms.length
+    : 2; // default mid if no data
+  const symptomScore = Math.min(100, Math.max(0, 100 - (avgIntensity / 4) * 100));
+
+  // Sleep component (15%) — optimal ~7.5h
+  const recentSleep = logs.slice(-7).filter((l) => l.sleepHours != null);
+  let sleepScore = 70; // default
+  if (recentSleep.length) {
+    const avgSleep = recentSleep.reduce((s, l) => s + (l.sleepHours ?? 7), 0) / recentSleep.length;
+    const deviation = Math.abs(avgSleep - 7.5);
+    sleepScore = Math.min(100, Math.max(0, 100 - deviation * 20));
+  }
+
+  // Weight stability component (10%) — low std-dev = good
+  const recentWeights = logs.slice(-7).filter((l) => l.weight != null).map((l) => l.weight!);
+  let weightScore = 80; // default
+  if (recentWeights.length >= 2) {
+    const mean = recentWeights.reduce((a, b) => a + b, 0) / recentWeights.length;
+    const variance = recentWeights.reduce((s, w) => s + (w - mean) ** 2, 0) / recentWeights.length;
+    const stdDev = Math.sqrt(variance);
+    weightScore = Math.min(100, Math.max(0, 100 - stdDev * 20));
+  }
+
+  return Math.round(moodScore * 0.4 + symptomScore * 0.35 + sleepScore * 0.15 + weightScore * 0.1);
 };
 
 export default function HomeScreen() {
@@ -39,9 +115,89 @@ export default function HomeScreen() {
   const sections = useAppStore((s) => s.dashboardSections);
   const isLoading = useAppStore((s) => s.isLoading);
   const updateDashboardSections = useAppStore((s) => s.updateDashboardSections);
+  const addHealthLog = useAppStore((s) => s.addHealthLog);
+  const addSymptom = useAppStore((s) => s.addSymptom);
+
   const [window, setWindow] = useState<WindowSize>(30);
   const [showCustomize, setShowCustomize] = useState(false);
 
+  // Check-in state
+  const [selectedMood, setSelectedMood] = useState<MoodLevel | null>(null);
+  const [partnerShared, setPartnerShared] = useState<ShareWithPartner | null>(null);
+  const [childrenShared, setChildrenShared] = useState<ShareWithChildren | null>(null);
+  const [showSymptomModal, setShowSymptomModal] = useState(false);
+  const [isCheckinComplete, setIsCheckinComplete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [symptomResponses, setSymptomResponses] = useState<SymptomResponses>(initialSymptomResponses);
+  const [sleepInput, setSleepInput] = useState("");
+  const [weightInput, setWeightInput] = useState("");
+  const [slideWidth, setSlideWidth] = useState(320);
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  const moodLabelMap: Record<MoodLevel, string> = {
+    low: t("checkinLow"),
+    okay: t("checkinOkay"),
+    good: t("checkinGood"),
+    great: t("checkinGreat")
+  };
+
+  const goToStep = (nextStep: number) => {
+    if (!slideWidth) return;
+    Animated.timing(translateX, {
+      toValue: -nextStep * slideWidth,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true
+    }).start();
+  };
+
+  const onMoodSelect = (mood: MoodLevel) => {
+    selectionFeedback();
+    setSelectedMood(mood);
+    goToStep(1);
+  };
+
+  const setSymptomValue = (key: SymptomKey, value: number) => {
+    selectionFeedback();
+    setSymptomResponses((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const allSymptomsAnswered = useMemo(() => Object.values(symptomResponses).every((v) => v >= 0), [symptomResponses]);
+  const canOpenSymptoms = !!selectedMood && !!partnerShared && !!childrenShared;
+
+  const onCheckinSubmit = async () => {
+    if (!selectedMood || !allSymptomsAnswered) return;
+    setSubmitting(true);
+    const date = new Date().toISOString().slice(0, 10);
+    const sleepHours = parseFloat(sleepInput) || null;
+    const weight = parseFloat(weightInput) || null;
+    await addHealthLog({ date, moodScore: moodMap[selectedMood], sleepHours, weight });
+    await Promise.all([
+      addSymptom("fatigue", symptomResponses.exhaustion),
+      addSymptom("joint-pain", symptomResponses.jointPain),
+      addSymptom("hot-flashes", symptomResponses.hotFlashes),
+      addSymptom("sleep", symptomResponses.sleepIssues),
+      addSymptom("vaginal-dryness", symptomResponses.vaginalDryness),
+      addSymptom("depression", symptomResponses.depression)
+    ]);
+    setSubmitting(false);
+    setShowSymptomModal(false);
+    setIsCheckinComplete(true);
+    selectionFeedback();
+  };
+
+  const resetCheckin = () => {
+    setSelectedMood(null);
+    setPartnerShared(null);
+    setChildrenShared(null);
+    setSymptomResponses(initialSymptomResponses);
+    setSleepInput("");
+    setWeightInput("");
+    setIsCheckinComplete(false);
+    translateX.setValue(0);
+  };
+
+  // Dashboard data
   const moodEntries = useMemo<MoodEntry[]>(
     () =>
       logs
@@ -57,9 +213,11 @@ export default function HomeScreen() {
   );
 
   const latest = logs.at(-1);
-  const avgMood = logs.length
-    ? Math.round(logs.reduce((acc, l) => acc + (l.moodScore ?? 60), 0) / logs.length)
-    : 60;
+
+  const wellbeingScore = useMemo(
+    () => computeWellbeing(logs, symptoms),
+    [logs, symptoms]
+  );
 
   const topSymptoms = Object.entries(
     symptoms.reduce<Record<string, number>>((acc, s) => {
@@ -132,12 +290,43 @@ export default function HomeScreen() {
   };
 
   const topSymptomLabel = topSymptoms.length ? trSymptom(topSymptoms[0]) : t("empty");
+  const counselorPhone = "+977-9864067676";
+  const counselorTel = "tel:+9779864067676";
+  const counselorWhatsapp = "https://wa.me/9779864067676";
 
   const visibleCardCount =
     Number(sections.showMoodTrend) +
     Number(sections.showWellbeing) +
     Number(sections.showSnapshot) +
     Number(sections.showSymptoms);
+
+  const openCounselorPopup = () => {
+    Alert.alert(
+      t("homeSupportCounselor", { defaultValue: "Counselor" }),
+      [
+        t("homeSupportPopupName", { defaultValue: "mankaa kura" }),
+        counselorPhone
+      ].join("\n"),
+      [
+        {
+          text: t("homeSupportCall", { defaultValue: "Call" }),
+          onPress: () => {
+            void Linking.openURL(counselorTel);
+          }
+        },
+        {
+          text: "WhatsApp",
+          onPress: () => {
+            void Linking.openURL(counselorWhatsapp);
+          }
+        },
+        {
+          text: t("back", { defaultValue: "Back" }),
+          style: "cancel"
+        }
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -149,17 +338,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {visibleCardCount === 0 ? (
-          <AppCard>
-            <Text style={styles.emptyTitle}>
-              {t("noMetricsSelectedTitle", {
-                name: profile?.fullName?.trim() || t("notAvailable")
-              })}
-            </Text>
-            <Text style={styles.emptyText}>{t("noMetricsSelectedSubtitle")}</Text>
-          </AppCard>
-        ) : null}
-
+        {/* Greeting */}
         <AppCard style={styles.greetingCard}>
           <Text style={styles.greetingTitle}>
             {t("homeGreeting", {
@@ -172,6 +351,182 @@ export default function HomeScreen() {
           </Text>
           <Text style={styles.greetingTrend}>{trendMsg}</Text>
         </AppCard>
+
+        {/* Inline Check-in */}
+        {!isCheckinComplete ? (
+          <>
+            <AppCard style={styles.checkinCard}>
+              <Image source={require("../../assets/icon.png")} style={styles.heroImage} resizeMode="contain" />
+              <Text style={styles.checkinLabel}>{t("checkinDailyTitle")}</Text>
+              <Text style={styles.checkinQuestion}>{t("checkinMainQuestion")}</Text>
+
+              <View
+                style={styles.sliderViewport}
+                onLayout={(e) => {
+                  const w = Math.round(e.nativeEvent.layout.width);
+                  if (w > 0) setSlideWidth(w);
+                }}
+              >
+                <Animated.View style={[styles.slider, { width: slideWidth * 5, transform: [{ translateX }] }]}>
+                  {/* Step 1 — mood */}
+                  <View style={[styles.slide, { width: slideWidth }]}>
+                    <View style={styles.checkinGrid}>
+                      <OptionButton label={t("checkinLow")} emoji="😔" selected={selectedMood === "low"} onPress={() => onMoodSelect("low")} />
+                      <OptionButton label={t("checkinOkay")} emoji="😐" selected={selectedMood === "okay"} onPress={() => onMoodSelect("okay")} />
+                      <OptionButton label={t("checkinGood")} emoji="🙂" selected={selectedMood === "good"} onPress={() => onMoodSelect("good")} />
+                      <OptionButton label={t("checkinGreat")} emoji="😊" selected={selectedMood === "great"} onPress={() => onMoodSelect("great")} />
+                    </View>
+                  </View>
+
+                  {/* Step 2 — partner */}
+                  <View style={[styles.slide, { width: slideWidth }]}>
+                    <SectionHeader title={t("checkinPartnerQuestion")} />
+                    <View style={styles.flowOptions}>
+                      {([
+                        { key: "yes" as const, label: t("checkinYes") },
+                        { key: "no" as const, label: t("checkinNo") },
+                        { key: "prefer-not" as const, label: t("checkinPreferNot") }
+                      ]).map((item) => (
+                        <OptionButton
+                          key={item.key}
+                          label={item.label}
+                          selected={partnerShared === item.key}
+                          onPress={() => { selectionFeedback(); setPartnerShared(item.key); goToStep(2); }}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Step 3 — children */}
+                  <View style={[styles.slide, { width: slideWidth }]}>
+                    <SectionHeader title={t("checkinChildrenQuestion")} />
+                    <View style={styles.flowOptions}>
+                      {([
+                        { key: "yes" as const, label: t("checkinYes") },
+                        { key: "no" as const, label: t("checkinNo") },
+                        { key: "na" as const, label: t("checkinNotApplicable") }
+                      ]).map((item) => (
+                        <OptionButton
+                          key={item.key}
+                          label={item.label}
+                          selected={childrenShared === item.key}
+                          onPress={() => { selectionFeedback(); setChildrenShared(item.key); goToStep(3); }}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Step 4 — sleep & weight */}
+                  <View style={[styles.slide, { width: slideWidth }]}>
+                    <SectionHeader title={t("healthSnapshot")} />
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>{trMetric("sleep")} (hrs)</Text>
+                      <TextInput
+                        value={sleepInput}
+                        onChangeText={setSleepInput}
+                        style={styles.inlineInput}
+                        placeholder="e.g. 7.5"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numeric"
+                        textContentType="none"
+                        autoComplete="off"
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>{trMetric("weight")} (kg)</Text>
+                      <TextInput
+                        value={weightInput}
+                        onChangeText={setWeightInput}
+                        style={styles.inlineInput}
+                        placeholder="e.g. 62"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="numeric"
+                        textContentType="none"
+                        autoComplete="off"
+                      />
+                    </View>
+                    <Pressable
+                      style={styles.nextStepBtn}
+                      onPress={() => { selectionFeedback(); goToStep(4); }}
+                    >
+                      <Text style={styles.nextStepText}>{t("checkinYes", { defaultValue: "Continue" })}</Text>
+                    </Pressable>
+                  </View>
+
+                  {/* Step 5 — thanks */}
+                  <View style={[styles.slide, { width: slideWidth }]}>
+                    <View style={styles.thanksWrap}>
+                      <Text style={styles.thanksTitle}>{t("checkinThanks")}</Text>
+                      {selectedMood ? (
+                        <Text style={styles.moodEcho}>{t("checkinSelectedMood", { mood: moodLabelMap[selectedMood] })}</Text>
+                      ) : null}
+                      <Text style={styles.moodHint}>{t("checkinSymptomHint")}</Text>
+                    </View>
+                  </View>
+                </Animated.View>
+              </View>
+            </AppCard>
+
+            <AppCard style={styles.symptomCtaCard}>
+              <View style={styles.symptomCtaHeader}>
+                <View style={[styles.alertIcon, { backgroundColor: "#FDE7F1" }]}>
+                  <Ionicons name="fitness-outline" size={16} color={colors.primaryDark} />
+                </View>
+                <Text style={styles.symptomCtaTitle}>{t("checkinSymptomTitle")}</Text>
+              </View>
+              <Text style={styles.symptomCtaSub}>{t("checkinSymptomCardSub")}</Text>
+              <Text style={styles.symptomCtaHint}>
+                {canOpenSymptoms ? t("checkinReadyToComplete") : t("checkinCompleteConversationFirst")}
+              </Text>
+              <Animated.View style={{ opacity: canOpenSymptoms ? 1 : 0.6, marginTop: 8 }}>
+                <AppButton
+                  label={t("checkinLogSymptoms")}
+                  onPress={() => { if (canOpenSymptoms) setShowSymptomModal(true); }}
+                />
+              </Animated.View>
+            </AppCard>
+          </>
+        ) : (
+          <AppCard style={styles.doneCard}>
+            <View style={styles.doneRow}>
+              <Ionicons name="checkmark-circle" size={32} color={colors.success} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.doneTitle}>{t("checkinCompleteTitle")}</Text>
+                <Text style={styles.doneMsg}>{t("checkinCompleteMsg")}</Text>
+              </View>
+            </View>
+
+            <View style={styles.snapshotGrid}>
+              {([
+                [t("checkinSymptomsExhaustion"), symptomResponses.exhaustion],
+                [t("checkinSymptomsJointPain"), symptomResponses.jointPain],
+                [t("checkinSymptomsHotFlashes"), symptomResponses.hotFlashes],
+                [t("checkinSymptomsSleepIssues"), symptomResponses.sleepIssues],
+                [t("checkinSymptomsVaginalDryness"), symptomResponses.vaginalDryness],
+                [t("checkinSymptomsDepression"), symptomResponses.depression]
+              ] as [string, number][]).map(([label, value]) => (
+                <View key={label} style={styles.snapshotRow}>
+                  <Text style={styles.snapshotLabel}>{label}</Text>
+                  <Text style={[styles.snapshotValue, { color: symptomSeverityColor(value) }]}>
+                    {symptomScaleToText(value, t)} ({formatNumber(value, i18n.language)})
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <AppButton label={t("checkinNewEntry")} variant="secondary" onPress={resetCheckin} />
+          </AppCard>
+        )}
+
+        {/* Dashboard Cards */}
+        {visibleCardCount === 0 ? (
+          <AppCard>
+            <Text style={styles.emptyTitle}>
+              {t("noMetricsSelectedTitle", { name: profile?.fullName?.trim() || t("notAvailable") })}
+            </Text>
+            <Text style={styles.emptyText}>{t("noMetricsSelectedSubtitle")}</Text>
+          </AppCard>
+        ) : null}
 
         {sections.showMoodTrend ? (
           <AppCard>
@@ -192,7 +547,7 @@ export default function HomeScreen() {
         {sections.showWellbeing ? (
           <AppCard>
             <SectionHeader title={t("wellbeingScore")} />
-            <ProgressRing score={avgMood} />
+            <ProgressRing score={wellbeingScore} />
             <Text style={styles.contextText}>{trendMsg}</Text>
           </AppCard>
         ) : null}
@@ -212,22 +567,13 @@ export default function HomeScreen() {
                 />
               ) : null}
               {prefs.showWeight ? (
-                <MetricTile
-                  label={trMetric("weight")}
-                  value={latest?.weight ? formatNumber(latest.weight, i18n.language) : "--"}
-                />
+                <MetricTile label={trMetric("weight")} value={latest?.weight ? formatNumber(latest.weight, i18n.language) : "--"} />
               ) : null}
               {prefs.showSleep ? (
-                <MetricTile
-                  label={trMetric("sleep")}
-                  value={latest?.sleepHours ? formatNumber(latest.sleepHours, i18n.language) : "--"}
-                />
+                <MetricTile label={trMetric("sleep")} value={latest?.sleepHours ? formatNumber(latest.sleepHours, i18n.language) : "--"} />
               ) : null}
               {prefs.showMood ? (
-                <MetricTile
-                  label={trMetric("mood")}
-                  value={latest?.moodScore ? formatNumber(latest.moodScore, i18n.language) : "--"}
-                />
+                <MetricTile label={trMetric("mood")} value={latest?.moodScore ? formatNumber(latest.moodScore, i18n.language) : "--"} />
               ) : null}
             </View>
             {!prefs.showBp && !prefs.showWeight && !prefs.showSleep && !prefs.showMood ? (
@@ -249,6 +595,7 @@ export default function HomeScreen() {
           </AppCard>
         ) : null}
 
+        {/* Alerts & Insights */}
         <AppCard>
           <SectionHeader title={t("homeAlertsTitle", { defaultValue: "Alerts & insights" })} />
           <View style={styles.alertStack}>
@@ -274,36 +621,54 @@ export default function HomeScreen() {
                 {t("homeTopSymptom", { defaultValue: "Top symptom lately: {{symptom}}", symptom: topSymptomLabel })}
               </Text>
             </View>
+
+            {/* Dynamic: partner not sharing → communication article */}
+            {partnerShared === "no" ? (
+              <Pressable style={styles.alertRow} onPress={() => router.push("/(tabs)/insights" as any)}>
+                <View style={[styles.alertIcon, { backgroundColor: "#E8EDFD" }]}>
+                  <Ionicons name="chatbubbles-outline" size={14} color="#5468B7" />
+                </View>
+                <Text style={[styles.alertText, styles.alertLink]}>
+                  {t("insightPartnerComm", { defaultValue: "You chose not to share with your partner. Read an article on communicating during menopause." })}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+
+            {/* Dynamic: low wellbeing → self-care article */}
+            {wellbeingScore < 70 ? (
+              <Pressable style={styles.alertRow} onPress={() => router.push("/(tabs)/insights" as any)}>
+                <View style={[styles.alertIcon, { backgroundColor: "#FDE7F1" }]}>
+                  <Ionicons name="leaf-outline" size={14} color={colors.primaryDark} />
+                </View>
+                <Text style={[styles.alertText, styles.alertLink]}>
+                  {t("insightLowWellbeing", { defaultValue: "Your wellbeing score is {{score}}. Explore self-care tips to feel better.", score: wellbeingScore })}
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
         </AppCard>
 
+        {/* Talk to someone — counselor only */}
         <AppCard>
           <SectionHeader title={t("homeSupportTitle", { defaultValue: "Talk to someone" })} />
-          <View style={styles.supportStack}>
-            {[
-              { icon: "🩺", title: t("homeSupportCounselor", { defaultValue: "Counselor" }), subtitle: t("homeSupportCounselorSub", { defaultValue: "Emotional support and coping plans" }) },
-              { icon: "👩‍⚕️", title: t("homeSupportGyne", { defaultValue: "Gynecologist" }), subtitle: t("homeSupportGyneSub", { defaultValue: "Hormonal and menopause guidance" }) },
-              { icon: "👥", title: t("homeSupportPeer", { defaultValue: "Peer group" }), subtitle: t("homeSupportPeerSub", { defaultValue: "Shared stories and support circles" }) },
-              { icon: "🆘", title: t("homeSupportCrisis", { defaultValue: "Crisis line" }), subtitle: t("homeSupportCrisisSub", { defaultValue: "Immediate confidential support" }) }
-            ].map((item) => (
-              <Pressable key={item.title} style={styles.supportRow}>
-                <Text style={styles.supportIcon}>{item.icon}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.supportTitle}>{item.title}</Text>
-                  <Text style={styles.supportSub}>{item.subtitle}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-              </Pressable>
-            ))}
+          <View style={styles.alertStack}>
+            <Pressable style={styles.alertRow} onPress={openCounselorPopup}>
+              <View style={[styles.alertIcon, { backgroundColor: "#FDE7F1" }]}>
+                <Ionicons name="heart-circle-outline" size={16} color={colors.primaryDark} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.supportTitle}>{t("homeSupportCounselor", { defaultValue: "Counselor" })}</Text>
+                <Text style={styles.supportSub}>{t("homeSupportCounselorSub", { defaultValue: "Emotional support and coping plans" })}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
           </View>
         </AppCard>
-
-        <AppButton
-          label={t("homeStartCheckin", { defaultValue: "Start today's check-in →" })}
-          onPress={() => router.push("/(tabs)/checkin" as any)}
-        />
       </ScrollView>
 
+      {/* Customize modal */}
       <Modal visible={showCustomize} transparent animationType="slide" onRequestClose={() => setShowCustomize(false)}>
         <View style={styles.overlay}>
           <View style={styles.sheet}>
@@ -330,6 +695,22 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Symptom modal */}
+      <SymptomModal
+        visible={showSymptomModal}
+        values={symptomResponses}
+        onClose={() => setShowSymptomModal(false)}
+        onChange={setSymptomValue}
+        onSubmit={() => {
+          if (!allSymptomsAnswered) {
+            Alert.alert(t("checkinFillSymptomsTitle"), t("checkinFillSymptomsMsg"));
+            return;
+          }
+          void onCheckinSubmit();
+        }}
+        submitting={submitting}
+      />
     </SafeAreaView>
   );
 }
@@ -338,23 +719,97 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: spacing.md, paddingBottom: 100, gap: spacing.sm },
-  delta: {
-    marginTop: spacing.xs,
-    color: colors.primaryDark,
-    fontWeight: "700"
+
+  // Check-in card
+  checkinCard: {
+    borderRadius: 30,
+    backgroundColor: "#B45586",
+    shadowColor: "#A74877",
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
+    overflow: "hidden"
   },
-  contextText: {
-    color: colors.textMuted,
-    textAlign: "center",
-    marginTop: spacing.sm
+  heroImage: { width: 90, height: 90, alignSelf: "center", marginBottom: 4 },
+  checkinLabel: {
+    color: "#F8DDE8",
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    marginBottom: 8,
+    textAlign: "center"
   },
+  checkinQuestion: {
+    color: "#FFFFFF",
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: "800",
+    marginBottom: spacing.md,
+    textAlign: "center"
+  },
+  sliderViewport: { width: "100%", overflow: "hidden" },
+  slider: { flexDirection: "row" },
+  slide: { paddingRight: spacing.xs },
+  checkinGrid: { gap: spacing.sm },
+  flowOptions: { gap: spacing.xs },
+  thanksWrap: { gap: spacing.md },
+  thanksTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "800" },
+  moodEcho: { color: "#FCE7EF", fontSize: 15 },
+  moodHint: { color: "#FCE7EF", fontSize: 14 },
+
+  // Sleep & weight inputs inside checkin
+  inputGroup: { marginBottom: 12 },
+  inputLabel: { color: "#FFFFFF", fontWeight: "700", marginBottom: 6 },
+  inlineInput: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 10,
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "600"
+  },
+  nextStepBtn: {
+    marginTop: 4,
+    alignItems: "center",
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingVertical: 12
+  },
+  nextStepText: { color: "#FFFFFF", fontWeight: "700" },
+
+  // Symptom CTA card
+  symptomCtaCard: { borderRadius: 24, backgroundColor: "#FFFFFF" },
+  symptomCtaHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
+  symptomCtaTitle: { color: colors.text, fontWeight: "800", fontSize: 18 },
+  symptomCtaSub: { color: colors.textMuted, marginTop: 4 },
+  symptomCtaHint: { color: colors.primaryDark, fontWeight: "600", marginTop: spacing.sm },
+
+  // Check-in complete
+  doneCard: { backgroundColor: "#F2FBF5", borderWidth: 1, borderColor: "#D2EDDB" },
+  doneRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: spacing.sm },
+  doneTitle: { color: colors.text, fontSize: 18, fontWeight: "800" },
+  doneMsg: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  snapshotGrid: { marginBottom: spacing.sm },
+  snapshotRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#DEF0E4"
+  },
+  snapshotLabel: { color: colors.text, fontWeight: "600" },
+  snapshotValue: { fontWeight: "800" },
+
+  // Dashboard
+  delta: { marginTop: spacing.xs, color: colors.primaryDark, fontWeight: "700" },
+  contextText: { color: colors.textMuted, textAlign: "center", marginTop: spacing.sm },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  greetingCard: {
-    backgroundColor: "#FCE8F2",
-    borderWidth: 1,
-    borderColor: "#F4DCE8"
-  },
+  greetingCard: { backgroundColor: "#FCE8F2", borderWidth: 1, borderColor: "#F4DCE8" },
   greetingTitle: { color: colors.text, fontWeight: "800", fontSize: 18 },
   greetingSub: { color: colors.primaryDark, fontWeight: "700", marginTop: 4 },
   greetingTrend: { color: colors.text, marginTop: 8, lineHeight: 20 },
@@ -371,25 +826,8 @@ const styles = StyleSheet.create({
   customizeLabel: { color: colors.primaryDark, fontWeight: "700", fontSize: 12 },
   emptyTitle: { color: colors.text, fontSize: 18, fontWeight: "700" },
   emptyText: { color: colors.textMuted, marginTop: 6 },
-  overlay: { flex: 1, backgroundColor: "rgba(20,16,20,0.25)", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl
-  },
-  sheetTitle: { color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: spacing.sm },
-  prefList: { gap: spacing.xs },
-  prefRow: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    backgroundColor: "#FFF9FD",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm
-  },
-  prefLabel: { color: colors.text, fontWeight: "600" },
+
+  // Alerts & support — unified style
   alertStack: { gap: 8 },
   alertRow: {
     flexDirection: "row",
@@ -410,21 +848,30 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   alertText: { flex: 1, color: colors.text, lineHeight: 19 },
-  supportStack: { gap: 8 },
-  supportRow: {
+  alertLink: { color: colors.primaryDark, fontWeight: "600" },
+  supportTitle: { color: colors.text, fontWeight: "700" },
+  supportSub: { color: colors.textMuted, marginTop: 2, fontSize: 12 },
+
+  // Modals
+  overlay: { flex: 1, backgroundColor: "rgba(20,16,20,0.25)", justifyContent: "flex-end" },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl
+  },
+  sheetTitle: { color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: spacing.sm },
+  prefList: { gap: spacing.xs },
+  prefRow: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 14,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF9FD",
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
+    paddingVertical: spacing.sm
   },
-  supportIcon: { fontSize: 18 },
-  supportTitle: { color: colors.text, fontWeight: "700" },
-  supportSub: { color: colors.textMuted, marginTop: 2, fontSize: 12 },
+  prefLabel: { color: colors.text, fontWeight: "600" },
   sheetAction: { marginTop: spacing.sm },
   closeBtn: {
     backgroundColor: colors.primary,

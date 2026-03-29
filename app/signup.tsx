@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableWithoutFeedback, View, Keyboard } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TouchableWithoutFeedback, View, Keyboard } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { AppButton } from "@/components/AppButton";
@@ -40,6 +40,7 @@ export default function SignupScreen() {
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <AppCard>
             <Text style={styles.title}>{t("signup")}</Text>
+            <Text style={styles.subtitle}>{t("authSignupSubtitle", { defaultValue: "Create your account to start tracking and support." })}</Text>
             <InputField label={t("email")} value={email} onChangeText={setEmail} placeholder={t("emailPlaceholder")} />
             <InputField
               label={t("password")}
@@ -57,7 +58,12 @@ export default function SignupScreen() {
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <AppButton label={isLoading ? t("loading") : t("signup")} onPress={onSubmit} />
-            <AppButton label={t("login")} variant="secondary" onPress={() => router.push("/login" as any)} />
+            <View style={styles.switchRow}>
+              <Text style={styles.switchText}>{t("authHaveAccount", { defaultValue: "Already have an account?" })}</Text>
+              <Pressable onPress={() => router.push("/login" as any)}>
+                <Text style={styles.switchLink}>{t("login")}</Text>
+              </Pressable>
+            </View>
           </AppCard>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
@@ -69,5 +75,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.md, backgroundColor: colors.bg },
   title: { fontSize: 28, fontWeight: "700", color: colors.text, marginBottom: spacing.sm },
-  error: { color: "#B83D5B", marginBottom: spacing.sm }
+  subtitle: { color: colors.textMuted, marginBottom: spacing.md, lineHeight: 20 },
+  error: { color: "#B83D5B", marginBottom: spacing.sm },
+  switchRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: spacing.sm },
+  switchText: { color: colors.textMuted },
+  switchLink: { color: colors.primaryDark, fontWeight: "700" }
 });

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mena Care — रजोनिवृत्ति सहयोग</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #f6f0f4;
+      --card: #ffffff;
+      --card-soft: #f9e4f0;
+      --border: #efd7e5;
+      --text: #1f1a24;
+      --muted: #786b77;
+      --accent: #bd5a8d;
+      --accent-dark: #a14675;
+      --radius: 22px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background:
+        radial-gradient(circle at 85% 10%, #f4e5ef 0%, transparent 42%),
+        radial-gradient(circle at 10% 80%, #f8dce9 0%, transparent 36%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 26px 20px 34px;
+    }
+
+    .screen {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .top a {
+      text-decoration: none;
+      color: var(--accent-dark);
+      font-weight: 700;
+      font-size: 0.9rem;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 7px 12px;
+    }
+
+    h1 {
+      font-size: clamp(1.7rem, 4.6vw, 2.35rem);
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 18px;
+      font-size: 1rem;
+    }
+
+    .highlight {
+      background: var(--card-soft);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 18px;
+    }
+
+    .highlight strong {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 4px;
+    }
+
+    .highlight span {
+      color: #bf5d8e;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .highlight p {
+      color: #2b2630;
+      line-height: 1.5;
+      font-size: 0.98rem;
+    }
+
+    .checkin {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 30px;
+      padding: 24px 16px 16px;
+      box-shadow: 0 14px 30px rgba(145, 52, 96, 0.25);
+    }
+
+    .checkin .label {
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      opacity: 0.9;
+      text-align: center;
+      font-size: 0.86rem;
+      margin-bottom: 10px;
+    }
+
+    .checkin h2 {
+      text-align: center;
+      font-size: clamp(1.45rem, 4.2vw, 1.95rem);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .option {
+      width: 100%;
+      border: 0;
+      background: #fff;
+      color: #231f27;
+      margin-bottom: 10px;
+      border-radius: 16px;
+      padding: 14px;
+      text-align: left;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: default;
+    }
+
+    .start-btn {
+      margin-top: 16px;
+      width: 100%;
+      border: 0;
+      border-radius: 16px;
+      background: #fff;
+      color: var(--accent-dark);
+      padding: 14px;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .start-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(255, 255, 255, 0.35);
+    }
+  </style>
+</head>
+<body>
+  <main class="screen">
+    <div class="top">
+      <a href="/">भाषा</a>
+      <a href="/english">English</a>
+    </div>
+
+    <h1>आजको रजोनिवृत्ति ड्यासबोर्ड</h1>
+    <p class="subtitle">तपाईंको रजोनिवृत्ति र हर्मोनल अवस्थाको दैनिक स्न्यापसट।</p>
+
+    <section class="highlight">
+      <strong>शुभ प्रभात</strong>
+      <span>ट्र्याकिङको दिन ३० · आज लग इन गरियो</span>
+      <p>यो हप्ता तपाईंको मुड स्कोर केही घटेको छ। छोटो विश्राम र पानी पिउने समय मिलाउनुहोस्।</p>
+    </section>
+
+    <section class="checkin">
+      <div class="label">Daily Check-In</div>
+      <h2>आज तपाईंलाई कस्तो महसुस भइरहेको छ?</h2>
+      <button class="option">😔 कम</button>
+      <button class="option">😐 ठिकठाक</button>
+      <button class="option">🙂 राम्रो</button>
+      <button class="option">😊 एकदम राम्रो</button>
+      <button class="start-btn" onclick="openChat()">Mena सँग कुरा गर्नुहोस्</button>
+    </section>
+  </main>
+
+  <script>
+    function openChat() {
+      const w = 420, h = 680;
+      const left = (screen.width - w) / 2;
+      const top = (screen.height - h) / 2;
+      window.open('/conversation/nepali', 'mina-menopause-chat',
+        `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=no`);
+    }
+  </script>
+</body>
+</html>

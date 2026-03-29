@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mena Care — Choose Language</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #f6f0f4;
+      --card: #ffffff;
+      --card-soft: #f9e6f1;
+      --border: #f0d8e6;
+      --text: #1f1a24;
+      --muted: #786b77;
+      --accent: #c4508b;
+      --accent-dark: #ab3d74;
+      --accent-soft: #edd4e2;
+      --radius: 24px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 85% 10%, #f4e5ef 0%, transparent 42%),
+        radial-gradient(circle at 10% 80%, #f8dce9 0%, transparent 36%),
+        var(--bg);
+      padding: 26px 20px 34px;
+    }
+
+    .screen {
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 26px 22px;
+      box-shadow: 0 12px 34px rgba(128, 66, 102, 0.08);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-soft);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 700;
+      color: var(--accent-dark);
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 4.8vw, 2.45rem);
+      line-height: 1.1;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 22px;
+    }
+
+    .actions {
+      display: grid;
+      gap: 12px;
+    }
+
+    .lang-btn {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.98rem;
+      cursor: pointer;
+      text-align: left;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .lang-btn.en {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(196, 80, 139, 0.35);
+    }
+
+    .lang-btn.np {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .lang-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .lang-btn.en:hover {
+      background: var(--accent-dark);
+    }
+
+    .quick-note {
+      margin-top: 14px;
+      background: var(--accent-soft);
+      border: 1px solid var(--border);
+      color: #6f4c61;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 0.86rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <main class="screen">
+    <section class="hero">
+      <div class="brand">🌸 Mena Care</div>
+      <h1>Choose your language</h1>
+      <p class="subtitle">Your menopause support companion is ready. Select a language to continue.</p>
+
+      <div class="actions">
+        <button class="lang-btn en" onclick="window.location.href='/english'">English</button>
+        <button class="lang-btn np" onclick="window.location.href='/nepali'">नेपाली</button>
+      </div>
+
+      <div class="quick-note">You can switch language any time from this page.</div>
+    </section>
+  </main>
+</body>
+</html>

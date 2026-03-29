@@ -33,12 +33,12 @@ interface SymptomModalProps {
 }
 
 const symptomMeta: Array<{ key: SymptomKey; labelKey: string; emoji: string }> = [
-  { key: "exhaustion", labelKey: "checkinSymptomsExhaustion", emoji: "🫠" },
-  { key: "jointPain", labelKey: "checkinSymptomsJointPain", emoji: "🦴" },
-  { key: "hotFlashes", labelKey: "checkinSymptomsHotFlashes", emoji: "🔥" },
-  { key: "vaginalDryness", labelKey: "checkinSymptomsVaginalDryness", emoji: "💧" },
-  { key: "depression", labelKey: "checkinSymptomsDepression", emoji: "🌧️" },
-  { key: "sleepIssues", labelKey: "checkinSymptomsSleepIssues", emoji: "🌙" }
+  { key: "exhaustion", labelKey: "checkinSymptomsExhaustion", emoji: "" },
+  { key: "jointPain", labelKey: "checkinSymptomsJointPain", emoji: "" },
+  { key: "hotFlashes", labelKey: "checkinSymptomsHotFlashes", emoji: "" },
+  { key: "vaginalDryness", labelKey: "checkinSymptomsVaginalDryness", emoji: "" },
+  { key: "depression", labelKey: "checkinSymptomsDepression", emoji: "" },
+  { key: "sleepIssues", labelKey: "checkinSymptomsSleepIssues", emoji: "" }
 ];
 
 const severityColors = ["#6B7280", "#4FAF7A", "#E39C5A", "#D96A4C", "#C2415D"];
@@ -97,7 +97,7 @@ export const SymptomModal = ({
             <View style={styles.handle} />
           </View>
 
-          <Text style={styles.title}>✨ {t("checkinSymptomTitle")}</Text>
+          <Text style={styles.title}>{t("checkinSymptomTitle")}</Text>
           <Text style={styles.sub}>
             {t("checkinSymptomScale")}
           </Text>

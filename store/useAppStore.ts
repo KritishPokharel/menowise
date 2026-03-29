@@ -72,6 +72,7 @@ interface AppStore {
   addHealthLog: (payload: Omit<HealthLog, "id">) => Promise<{ error: string | null }>;
   addSymptom: (name: SymptomTag, intensity: number) => Promise<{ error: string | null }>;
   setLanguage: (lang: Language) => Promise<void>;
+  seedDummyData: () => Promise<void>;
 }
 
 const defaultPreferences: HealthPreferences = {
@@ -135,6 +136,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     if (session?.user) {
       await get().refreshUserData();
+      await get().seedDummyData();
     }
 
     set({ isBootstrapping: false, isLoading: false });
@@ -351,5 +353,76 @@ export const useAppStore = create<AppStore>((set, get) => ({
       },
       { onConflict: "id" }
     );
+  },
+
+  seedDummyData: async () => {
+    const userId = get().user?.id;
+    if (!userId) return;
+
+    const existing = get().healthLogs;
+    if (existing.length >= 14) return;
+
+    const existingDates = new Set(existing.map((l) => l.date));
+    const logs: Array<{
+      user_id: string;
+      date: string;
+      mood_score: number;
+      bp_systolic: number;
+      bp_diastolic: number;
+      weight: number;
+      sleep_hours: number;
+    }> = [];
+    const symptomRows: Array<{
+      user_id: string;
+      symptom_name: string;
+      intensity: number;
+    }> = [];
+    const now = new Date();
+
+    const symptomPool: SymptomTag[] = [
+      "fatigue",
+      "hot-flashes",
+      "sleep",
+      "joint-pain",
+      "headache",
+      "mood-swings"
+    ];
+
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      if (existingDates.has(dateStr)) continue;
+
+      logs.push({
+        user_id: userId,
+        date: dateStr,
+        mood_score: Math.round(50 + Math.random() * 40),
+        bp_systolic: Math.round(110 + Math.random() * 20),
+        bp_diastolic: Math.round(70 + Math.random() * 15),
+        weight: Math.round((58 + Math.random() * 4) * 10) / 10,
+        sleep_hours: Math.round((5.5 + Math.random() * 3) * 10) / 10
+      });
+
+      const count = 1 + Math.floor(Math.random() * 3);
+      const shuffled = [...symptomPool].sort(() => Math.random() - 0.5);
+      for (let j = 0; j < count; j++) {
+        symptomRows.push({
+          user_id: userId,
+          symptom_name: shuffled[j],
+          intensity: Math.floor(Math.random() * 3)
+        });
+      }
+    }
+
+    if (logs.length > 0) {
+      await supabase.from("health_logs").insert(logs);
+    }
+    if (symptomRows.length > 0) {
+      await supabase.from("symptoms").insert(symptomRows);
+    }
+    if (logs.length > 0 || symptomRows.length > 0) {
+      await get().refreshUserData();
+    }
   }
 }));

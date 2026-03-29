@@ -1,233 +1,97 @@
-import { useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { useMemo } from "react";
+import { StyleSheet, View } from "react-native";
+import { WebView } from "react-native-webview";
 import { useTranslation } from "react-i18next";
-import { colors, spacing } from "@/constants/theme";
-import { useAppStore } from "@/store/useAppStore";
+import { colors } from "@/constants/theme";
 
-type Mode = "text" | "voice";
-type ChatItem = { id: string; role: "user" | "assistant"; text: string };
+const ELEVENLABS_AGENT_ID = "agent_0301kmty44s1fwf9vq5b34v5sw9s";
+
+const buildWidgetHtml = () => `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <style>
+      :root { color-scheme: light; }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+      }
+      .widget-wrap {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="widget-wrap">
+        <elevenlabs-convai agent-id="${ELEVENLABS_AGENT_ID}"></elevenlabs-convai>
+    </div>
+    <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+  </body>
+</html>`;
 
 export const AIAssistantFab = () => {
-  const { t } = useTranslation();
-  const profile = useAppStore((s) => s.profile);
-  const tr = (key: string, defaultValue: string, options?: Record<string, unknown>) =>
-    t(key, { defaultValue, ...(options ?? {}) });
-  const displayName = profile?.fullName?.trim() || tr("notAvailable", "N/A");
+  useTranslation();
 
-  const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("text");
-  const [text, setText] = useState("");
-  const [chat, setChat] = useState<ChatItem[]>([
-    {
-      id: "greet",
-      role: "assistant",
-      text: tr("aiFabGreeting", "Hi {{name}}, I’m here to help with emotions, planning, and support.", { name: displayName })
-    }
-  ]);
-  const scale = useRef(new Animated.Value(0.9)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  const openPanel = () => {
-    setOpen(true);
-    Animated.parallel([
-      Animated.timing(scale, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true })
-    ]).start();
-  };
-
-  const closePanel = () => {
-    Animated.parallel([
-      Animated.timing(scale, { toValue: 0.95, duration: 180, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0, duration: 130, useNativeDriver: true })
-    ]).start(() => setOpen(false));
-  };
-
-  const send = (value: string) => {
-    if (!value.trim()) return;
-    const input = value.trim();
-    setChat((prev) => [
-      ...prev,
-      { id: `u-${Date.now()}`, role: "user", text: input },
-      {
-        id: `a-${Date.now() + 1}`,
-        role: "assistant",
-        text: `${tr("assistantReplyPrefix", "I hear you. Let’s choose one 10-minute task, one grounding breath cycle, and one gentle boundary for today.")} ${tr("aiFabActionNudge", "Let’s choose one small action for today.")}`
-      }
-    ]);
-    setText("");
-  };
-
-  const voiceSuggestion = useMemo(
-    () => `${tr("aiFabVoicePrompt", "Voice note captured.")} ${tr("aiFabActionNudge", "Let’s choose one small action for today.")}`,
-    [t]
+  const html = useMemo(
+    () => buildWidgetHtml(),
+    []
   );
 
   return (
-    <>
-      <Pressable style={styles.fab} onPress={openPanel}>
-        <Ionicons name="sparkles" size={22} color="#FFFFFF" />
-      </Pressable>
-
-      <Modal visible={open} transparent animationType="none" onRequestClose={closePanel}>
-        <Pressable style={styles.overlay} onPress={closePanel}>
-          <Animated.View style={[styles.panelWrap, { opacity, transform: [{ scale }] }]}>
-            <Pressable style={styles.panel} onPress={() => undefined}>
-              <View style={styles.header}>
-                <View>
-                  <Text style={styles.title}>{tr("aiFabTitle", "MenoWise Copilot")}</Text>
-                  <Text style={styles.subtitle}>{tr("aiFabSubtitle", "Calm guidance in text or voice.")}</Text>
-                </View>
-                <Pressable onPress={closePanel}>
-                  <Ionicons name="close" size={20} color={colors.textMuted} />
-                </Pressable>
-              </View>
-
-              <View style={styles.modeRow}>
-                <Pressable style={[styles.modeChip, mode === "text" && styles.modeChipActive]} onPress={() => setMode("text")}>
-                  <Text style={[styles.modeLabel, mode === "text" && styles.modeLabelActive]}>{tr("aiFabModeText", "Chat")}</Text>
-                </Pressable>
-                <Pressable style={[styles.modeChip, mode === "voice" && styles.modeChipActive]} onPress={() => setMode("voice")}>
-                  <Text style={[styles.modeLabel, mode === "voice" && styles.modeLabelActive]}>{tr("aiFabModeVoice", "Voice")}</Text>
-                </Pressable>
-              </View>
-
-              {mode === "text" ? (
-                <>
-                  <FlatList
-                    data={chat}
-                    keyExtractor={(item) => item.id}
-                    style={styles.chatList}
-                    contentContainerStyle={{ gap: 8 }}
-                    renderItem={({ item }) => (
-                      <View style={[styles.bubble, item.role === "assistant" ? styles.bot : styles.user]}>
-                        <Text style={styles.bubbleText}>{item.text}</Text>
-                      </View>
-                    )}
-                  />
-                  <View style={styles.inputRow}>
-                    <TextInput
-                      value={text}
-                      onChangeText={setText}
-                      placeholder={tr("shareFeelPlaceholder", "Share what you feel...")}
-                      placeholderTextColor={colors.textMuted}
-                      style={styles.input}
-                    />
-                    <Pressable style={styles.sendBtn} onPress={() => send(text)}>
-                      <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-                    </Pressable>
-                  </View>
-                </>
-              ) : (
-                <View style={styles.voiceWrap}>
-                  <Pressable style={styles.micBtn} onPress={() => setChat((prev) => [...prev, { id: `v-${Date.now()}`, role: "assistant", text: voiceSuggestion }])}>
-                    <Ionicons name="mic" size={26} color="#FFFFFF" />
-                  </Pressable>
-                  <Text style={styles.voiceTitle}>{tr("aiFabVoiceTitle", "Voice check-in")}</Text>
-                  <Text style={styles.voiceSub}>{tr("aiFabVoiceSub", "Tap the mic and share how you feel. I’ll turn it into a practical next step.")}</Text>
-                </View>
-              )}
-            </Pressable>
-          </Animated.View>
-        </Pressable>
-      </Modal>
-    </>
+    <View pointerEvents="box-none" style={styles.host}>
+      <WebView
+        originWhitelist={["*"]}
+        source={{ html }}
+        javaScriptEnabled
+        domStorageEnabled
+        scrollEnabled={false}
+        bounces={false}
+        style={styles.webview}
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  fab: {
+  host: {
     position: "absolute",
-    right: 18,
-    bottom: 94,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: colors.primaryDark,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#7A3B62",
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    right: 14,
+    bottom: 112,
+    width: 76,
+    height: 76,
     zIndex: 99
   },
-  overlay: { flex: 1, backgroundColor: "rgba(14,10,14,0.2)", justifyContent: "flex-end" },
-  panelWrap: { padding: spacing.md, paddingBottom: 90 },
-  panel: {
-    backgroundColor: "#FFF9FD",
-    borderWidth: 1,
-    borderColor: "#F1DFE8",
-    borderRadius: 26,
-    padding: spacing.md,
-    minHeight: 420,
-    maxHeight: 580
-  },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { color: colors.text, fontSize: 20, fontWeight: "800" },
-  subtitle: { color: colors.textMuted, marginTop: 2 },
-  modeRow: { marginTop: spacing.sm, flexDirection: "row", gap: 8 },
-  modeChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 7
-  },
-  modeChipActive: { borderColor: colors.primaryDark, backgroundColor: "#FCE8F3" },
-  modeLabel: { color: colors.textMuted, fontWeight: "700", fontSize: 12 },
-  modeLabelActive: { color: colors.primaryDark },
-  chatList: { marginTop: spacing.sm, flexGrow: 0, minHeight: 240, maxHeight: 320 },
-  bubble: { borderRadius: 14, padding: 10, maxWidth: "92%" },
-  bot: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: colors.border },
-  user: { backgroundColor: "#F4D8E7", alignSelf: "flex-end" },
-  bubbleText: { color: colors.text, lineHeight: 20 },
-  inputRow: { marginTop: spacing.sm, flexDirection: "row", gap: 8, alignItems: "center" },
-  input: {
+  webview: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    color: colors.text,
-    paddingHorizontal: 12,
-    paddingVertical: 10
-  },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryDark,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  voiceWrap: {
-    marginTop: spacing.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    flex: 1
-  },
-  micBtn: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: colors.primaryDark,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  voiceTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
-  voiceSub: { color: colors.textMuted, textAlign: "center", paddingHorizontal: spacing.lg, lineHeight: 20 }
+    backgroundColor: "transparent",
+    borderRadius: 18,
+    overflow: "hidden",
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8
+  }
 });

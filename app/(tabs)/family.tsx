@@ -13,6 +13,7 @@ type FamilyMember = {
   id: string;
   name: string;
   relation: string;
+  email: string;
 };
 
 export default function FamilyScreen() {
@@ -21,18 +22,20 @@ export default function FamilyScreen() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [relation, setRelation] = useState("");
+  const [email, setEmail] = useState("");
   const [shareMood, setShareMood] = useState(true);
   const [shareSymptoms, setShareSymptoms] = useState(false);
   const [shareSleep, setShareSleep] = useState(false);
 
   const addMember = () => {
-    if (!name.trim() || !relation.trim()) return;
+    if (!name.trim() || !relation.trim() || !email.trim()) return;
     setMembers((prev) => [
       ...prev,
-      { id: `${Date.now()}`, name: name.trim(), relation: relation.trim() }
+      { id: `${Date.now()}`, name: name.trim(), relation: relation.trim(), email: email.trim() }
     ]);
     setName("");
     setRelation("");
+    setEmail("");
     setOpen(false);
   };
 
@@ -89,6 +92,7 @@ export default function FamilyScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.memberName}>{member.name}</Text>
                     <Text style={styles.memberRelation}>{member.relation}</Text>
+                    <Text style={styles.memberEmail}>{member.email}</Text>
                   </View>
                 </View>
               ))}
@@ -115,6 +119,16 @@ export default function FamilyScreen() {
               onChangeText={setRelation}
               placeholder={t("familyRelationPlaceholder")}
               placeholderTextColor={colors.textMuted}
+              style={styles.input}
+            />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t("familyEmailPlaceholder")}
+              placeholderTextColor={colors.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
               style={styles.input}
             />
             <AppButton label={t("save")} onPress={addMember} />
@@ -173,6 +187,7 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.primaryDark, fontWeight: "800" },
   memberName: { color: colors.text, fontWeight: "700" },
   memberRelation: { color: colors.textMuted, marginTop: 2 },
+  memberEmail: { color: colors.primaryDark, marginTop: 2, fontSize: 13 },
   empty: { color: colors.textMuted },
   overlay: { flex: 1, backgroundColor: "rgba(20,16,20,0.25)", justifyContent: "flex-end" },
   sheet: {

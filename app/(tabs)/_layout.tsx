@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
 import { View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { AIAssistantFab } from "@/components/AIAssistantFab";
 import { colors } from "@/constants/theme";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -45,10 +44,7 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="checkin"
-          options={{
-            title: t("checkin"),
-            tabBarIcon: ({ color, size }) => <Ionicons name="heart-outline" color={color} size={size} />
-          }}
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="insights"
@@ -65,6 +61,13 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="ai"
+          options={{
+            title: t("ai"),
+            tabBarIcon: ({ color, size }) => <Ionicons name="sparkles-outline" color={color} size={size} />
+          }}
+        />
+        <Tabs.Screen
           name="family"
           options={{
             title: t("family"),
@@ -72,7 +75,6 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-      <AIAssistantFab />
     </View>
   );
 }

@@ -822,12 +822,12 @@ export default function OnboardingScreen() {
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
 
-              <View style={styles.actions}>
-                {currentStep !== "welcome" ? <AppButton label="Back" variant="secondary" onPress={back} /> : <View />}
-                {currentStep !== "complete" ? (
+              {currentStep !== "welcome" && currentStep !== "complete" ? (
+                <View style={styles.actions}>
+                  <AppButton label="Back" variant="secondary" onPress={back} />
                   <AppButton label="Continue" onPress={next} />
-                ) : null}
-              </View>
+                </View>
+              ) : null}
             </AppCard>
           </Animated.View>
         </KeyboardAvoidingView>

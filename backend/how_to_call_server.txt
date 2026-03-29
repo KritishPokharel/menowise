@@ -1,0 +1,11 @@
+curl -X POST http://localhost:5000/articles \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mood": "anxious",
+    "language": "ne",
+    "answers": {
+      "q1": "How do I talk to my family about how I feel?",
+      "q2": "Communicate with family",
+      "q3": "I want to be more open with my family"
+    }
+  }'

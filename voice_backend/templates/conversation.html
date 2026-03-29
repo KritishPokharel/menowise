@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="{{ t.lang }}">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>{{ t.title }}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #f6f0f4;
+      --card: #ffffff;
+      --border: #efd7e5;
+      --foreground: #241d28;
+      --muted: #7f6c7b;
+      --muted-bg: #f7e5ef;
+      --primary: #bd5a8d;
+      --primary-dark: #a14675;
+      --primary-light: rgba(189, 90, 141, 0.08);
+      --primary-fg: #fff8fc;
+      --destructive: #bf4f68;
+      --destructive-light: #fef4f4;
+      --accent-bg: #f3d6e6;
+      --radius: 0.75rem;
+    }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--foreground);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--accent-bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+    }
+    .header-info h1 { font-size: 0.88rem; font-weight: 600; }
+    .header-status { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+
+    .btn-end {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--destructive-light);
+      color: var(--destructive);
+      border: 1px solid rgba(239,68,68,.2);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-end:hover { background: #fee2e2; }
+    .btn-end svg { width: 14px; height: 14px; }
+
+    /* ── Chat area ──────────────────────── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+    }
+    main::-webkit-scrollbar { width: 3px; }
+    main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .chat-feed {
+      max-width: 420px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Messages */
+    .msg {
+      max-width: 88%;
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: 0.88rem;
+      line-height: 1.55;
+      animation: fadeUp 0.25s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.agent {
+      align-self: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: var(--primary-fg);
+    }
+    .msg .label {
+      font-size: 0.66rem;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+    .msg.agent .label { color: var(--primary); }
+    .msg.user  .label { color: rgba(255,255,255,0.7); }
+
+    /* Typing */
+    .typing {
+      display: none;
+      align-self: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+    }
+    .typing.visible { display: flex; gap: 5px; align-items: center; }
+    .typing span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: rgba(42,138,94,0.5);
+      animation: bounce 1.4s ease-in-out infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.12s; }
+    .typing span:nth-child(3) { animation-delay: 0.24s; }
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); opacity: 0.4; }
+      30%          { transform: translateY(-5px); opacity: 1; }
+    }
+
+    /* Quick-prompt tips card */
+    .tips-card {
+      background: var(--muted-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-top: 6px;
+    }
+    .tips-card h3 {
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .tips-card p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ── Footer / Controls ──────────────── */
+    footer {
+      padding: 16px 20px 24px;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+
+    .visualizer {
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 3px; height: 24px;
+    }
+    .visualizer .bar {
+      width: 4px; border-radius: 2px;
+      background: rgba(42,138,94,0.45);
+      height: 6px;
+      transition: height 0.08s ease;
+    }
+
+    .mic-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+      position: relative;
+    }
+    .mic-btn:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: scale(1.05);
+      box-shadow: 0 4px 20px rgba(42,138,94,0.3);
+    }
+    .mic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .mic-btn.active { background: var(--primary-dark); }
+
+    /* Pulse rings */
+    .mic-ring {
+      position: absolute;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 2px solid rgba(42,138,94,0.5);
+      animation: ringOut 2s ease-out infinite;
+      pointer-events: none;
+      display: none;
+    }
+    .mic-btn.active .mic-ring { display: block; }
+    .mic-btn.active .mic-ring:nth-child(2) { animation-delay: 0.6s; }
+    @keyframes ringOut {
+      0%   { transform: scale(1); opacity: 0.5; }
+      100% { transform: scale(1.9); opacity: 0; }
+    }
+
+    .controls-label {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 0.78rem; color: var(--muted);
+    }
+    .controls-label svg { width: 14px; height: 14px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <div class="header-avatar">🤰</div>
+      <div class="header-info">
+        <h1>{{ t.assistant_name }}</h1>
+        <div class="header-status" id="statusText">{{ t.ready_to_chat }}</div>
+      </div>
+    </div>
+    <button class="btn-end" onclick="endConversation()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
+        <line x1="23" y1="1" x2="1" y2="23"/>
+      </svg>
+      {{ t.end_chat }}
+    </button>
+  </header>
+
+  <!-- Chat area -->
+  <main id="chatArea">
+    <div class="chat-feed" id="chatFeed">
+
+      <!-- Welcome message -->
+      <div class="msg agent" id="welcomeMsg">
+        <div class="label">{{ t.welcome_label }}</div>
+        <div class="text">{{ t.welcome_message }}</div>
+      </div>
+
+      <!-- Typing indicator -->
+      <div class="typing" id="typingIndicator">
+        <span></span><span></span><span></span>
+      </div>
+
+      <!-- Tips card -->
+      <div class="tips-card" id="tipsCard">
+        <h3>{{ t.quick_prompts_title }}</h3>
+        <p>{{ t.tip_1 }}</p>
+        <p>{{ t.tip_2 }}</p>
+        <p>{{ t.tip_3 }}</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Controls -->
+  <footer>
+    <div class="visualizer" id="visualizer">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div>
+    </div>
+    <button class="mic-btn" id="micBtn" onclick="toggleConversation()">
+      <span class="mic-ring"></span>
+      <span class="mic-ring"></span>
+      <svg width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 15c1.66 0 3-1.34 3-3V6c0-1.66-1.34-3-3-3S9 4.34 9 6v6c0 1.66 1.34 3 3 3z"/>
+        <path d="M17 12c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V22h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+      </svg>
+    </button>
+    <span class="controls-label" id="controlsLabel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      {{ t.tap_to_start }}
+    </span>
+  </footer>
+
+<script id="i18n-text" type="application/json">{{ t | tojson }}</script>
+<script>
+const TEXT = JSON.parse(document.getElementById('i18n-text').textContent);
+
+// ── State ─────────────────────────────────────────────
+let ws              = null;
+let inputContext    = null;
+let outputContext   = null;
+let mediaStream     = null;
+let sourceNode      = null;
+let scriptProcessor = null;
+let silentGainNode  = null;
+let isConnected     = false;
+let nextPlayTime    = 0;
+let agentMsgEl      = null;
+let userMsgEl       = null;
+let isSpeaking      = false;
+let inputSampleRate = 16000;
+
+const SIGNED_URL_ENDPOINT = '/api/signed-url';
+const INPUT_SAMPLE_RATE   = 16000;
+
+// DOM
+const micBtn          = document.getElementById('micBtn');
+const statusText      = document.getElementById('statusText');
+const chatArea        = document.getElementById('chatArea');
+const chatFeed        = document.getElementById('chatFeed');
+const controlsLabel   = document.getElementById('controlsLabel');
+const bars            = document.querySelectorAll('.visualizer .bar');
+const typingIndicator = document.getElementById('typingIndicator');
+const tipsCard        = document.getElementById('tipsCard');
+
+// ── Toggle ────────────────────────────────────────────
+function toggleConversation() {
+  if (isConnected) endConversation();
+  else startConversation();
+}
+
+async function requestMicrophoneStream() {
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    throw new Error('Microphone is not supported on this device');
+  }
+
+  try {
+    // Keep the request minimal. Some WebView/browser combinations reject
+    // richer audio constraint objects with a pattern-mismatch error.
+    return await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: false,
+    });
+  } catch (err) {
+    const message = String((err && err.message) || err || '');
+    if (message.toLowerCase().includes('expected pattern') || message.toLowerCase().includes('did not match')) {
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    throw err;
+  }
+}
+
+async function ensureAudioContexts() {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) {
+    throw new Error('Audio playback is not supported on this device');
+  }
+
+  try {
+    if (!inputContext || inputContext.state === 'closed') {
+      inputContext = new AudioContextCtor();
+    }
+    if (!outputContext || outputContext.state === 'closed') {
+      outputContext = new AudioContextCtor();
+    }
+
+    if (inputContext.state === 'suspended') await inputContext.resume();
+    if (outputContext.state === 'suspended') await outputContext.resume();
+
+    if (!silentGainNode && inputContext) {
+      silentGainNode = inputContext.createGain();
+      silentGainNode.gain.value = 0;
+      silentGainNode.connect(inputContext.destination);
+    }
+  } catch (err) {
+    throw new Error((err && err.message) || 'Failed to start audio device');
+  }
+}
+
+// ── Start ─────────────────────────────────────────────
+async function startConversation() {
+  try {
+    setStatus(TEXT.connecting);
+    micBtn.disabled = true;
+
+    // Create audio contexts immediately inside the user gesture.
+    await ensureAudioContexts();
+
+    const res  = await fetch(SIGNED_URL_ENDPOINT);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    const signedUrl = typeof json.signed_url === 'string' ? json.signed_url.trim() : '';
+    if (!signedUrl) throw new Error('No signed_url returned');
+    try {
+      const urlObj = new URL(signedUrl);
+      if (urlObj.protocol !== 'wss:' && urlObj.protocol !== 'ws:') {
+        throw new Error('Invalid WebSocket protocol');
+      }
+    } catch (_) {
+      throw new Error('Invalid signed URL format');
+    }
+
+    mediaStream = await requestMicrophoneStream();
+
+    await ensureAudioContexts();
+    inputSampleRate = inputContext.sampleRate || INPUT_SAMPLE_RATE;
+
+    sourceNode      = inputContext.createMediaStreamSource(mediaStream);
+    scriptProcessor = inputContext.createScriptProcessor(4096, 1, 1);
+    sourceNode.connect(scriptProcessor);
+    scriptProcessor.connect(silentGainNode || inputContext.destination);
+
+    ws = new WebSocket(signedUrl);
+
+    ws.onopen = () => {
+      isConnected = true;
+      micBtn.disabled = false;
+      micBtn.classList.add('active');
+      setStatus(TEXT.listening);
+      setControlsLabel(TEXT.tap_to_end);
+      if (tipsCard) tipsCard.style.display = 'none';
+
+      ws.send(JSON.stringify({ type: 'conversation_initiation_client_data' }));
+
+      scriptProcessor.onaudioprocess = (e) => {
+        if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+        const inputData = e.inputBuffer.getChannelData(0);
+        const audio16k  = inputSampleRate === INPUT_SAMPLE_RATE
+          ? inputData
+          : resampleFloat32(inputData, inputSampleRate, INPUT_SAMPLE_RATE);
+        const pcm16     = float32ToPcm16(audio16k);
+        const b64       = arrayBufferToBase64(pcm16.buffer);
+        ws.send(JSON.stringify({ user_audio_chunk: b64 }));
+        const rms = Math.sqrt(audio16k.reduce((s, v) => s + v * v, 0) / audio16k.length);
+        updateVisualizer(rms * 5);
+      };
+    };
+
+    ws.onmessage = (event) => {
+      try { handleMessage(JSON.parse(event.data)); }
+      catch (err) { console.warn('[Mena] Parse error:', err); }
+    };
+
+    ws.onerror = () => setStatus(TEXT.connection_error);
+    ws.onclose = () => {
+      cleanUp();
+      setStatus(TEXT.chat_ended);
+      setControlsLabel(TEXT.tap_to_reconnect);
+    };
+
+  } catch (err) {
+    console.error('[Mena] Start failed:', err);
+    setStatus(err.message || TEXT.could_not_connect);
+    micBtn.disabled = false;
+    cleanUp();
+  }
+}
+
+// ── Handle messages ───────────────────────────────────
+function handleMessage(msg) {
+  switch (msg.type) {
+
+    case 'ping': {
+      const eid = msg.ping_event?.event_id;
+      const ms  = msg.ping_event?.ping_ms || 0;
+      setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.OPEN)
+          ws.send(JSON.stringify({ type: 'pong', event_id: eid }));
+      }, ms);
+      break;
+    }
+
+    case 'audio': {
+      const b64 = msg.audio_event?.audio_base_64;
+      const sr  = msg.audio_event?.sample_rate || 16000;
+      if (b64) {
+        playAudioChunk(b64, sr);
+        isSpeaking = true;
+        setStatus(TEXT.assistant_talking);
+        typingIndicator.classList.remove('visible');
+      }
+      break;
+    }
+
+    case 'agent_response': {
+      const text = msg.agent_response_event?.agent_response || '';
+      typingIndicator.classList.remove('visible');
+      if (userMsgEl) userMsgEl = null;
+      if (!agentMsgEl) {
+        agentMsgEl = addMessage('agent', text);
+      } else {
+        agentMsgEl.querySelector('.text').textContent = text;
+      }
+      scrollToBottom();
+      break;
+    }
+
+    case 'agent_response_correction': {
+      const corrected = msg.agent_response_correction_event?.corrected_agent_response || '';
+      if (agentMsgEl) agentMsgEl.querySelector('.text').textContent = corrected;
+      break;
+    }
+
+    case 'user_transcript': {
+      const text    = msg.user_transcription_event?.user_transcript || '';
+      const isFinal = msg.user_transcription_event?.is_final !== false;
+      if (agentMsgEl) agentMsgEl = null;
+      if (!userMsgEl) {
+        userMsgEl = addMessage('user', text);
+      } else {
+        userMsgEl.querySelector('.text').textContent = text;
+      }
+      if (isFinal) {
+        userMsgEl = null;
+        typingIndicator.classList.add('visible');
+      }
+      scrollToBottom();
+      break;
+    }
+
+    case 'interruption': {
+      isSpeaking = false;
+      setStatus(TEXT.listening);
+      agentMsgEl = null;
+      break;
+    }
+
+    case 'conversation_initiation_metadata':
+      console.log('[Mena] Session started:', msg);
+      break;
+
+    case 'turn_started':
+      agentMsgEl = null;
+      userMsgEl  = null;
+      break;
+
+    case 'turn_ended':
+      isSpeaking = false;
+      setStatus(TEXT.listening);
+      agentMsgEl = null;
+      userMsgEl  = null;
+      typingIndicator.classList.remove('visible');
+      break;
+
+    default: break;
+  }
+}
+
+// ── Play audio ────────────────────────────────────────
+function playAudioChunk(base64Audio, sampleRate) {
+  if (!outputContext) return;
+  if (outputContext.state === 'suspended') outputContext.resume();
+
+  const pcmBytes = base64ToArrayBuffer(base64Audio);
+  const pcm16    = new Int16Array(pcmBytes);
+  const float32  = new Float32Array(pcm16.length);
+  for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768;
+
+  const outputRate = outputContext.sampleRate;
+  let buffer;
+  if (sampleRate !== outputRate) {
+    const ratio = outputRate / sampleRate;
+    const newLen = Math.round(float32.length * ratio);
+    const resampled = new Float32Array(newLen);
+    for (let i = 0; i < newLen; i++) {
+      const srcIdx = i / ratio;
+      const idx  = Math.floor(srcIdx);
+      const frac = srcIdx - idx;
+      const s0   = float32[Math.min(idx, float32.length - 1)];
+      const s1   = float32[Math.min(idx + 1, float32.length - 1)];
+      resampled[i] = s0 + frac * (s1 - s0);
+    }
+    buffer = outputContext.createBuffer(1, newLen, outputRate);
+    buffer.getChannelData(0).set(resampled);
+  } else {
+    buffer = outputContext.createBuffer(1, float32.length, sampleRate);
+    buffer.getChannelData(0).set(float32);
+  }
+
+  const source = outputContext.createBufferSource();
+  source.buffer = buffer;
+  source.connect(outputContext.destination);
+
+  const now = outputContext.currentTime;
+  if (nextPlayTime < now) nextPlayTime = now;
+  source.start(nextPlayTime);
+  nextPlayTime += buffer.duration;
+
+  source.onended = () => {
+    if (outputContext && outputContext.currentTime >= nextPlayTime - 0.05) {
+      isSpeaking = false;
+      setStatus(TEXT.listening);
+    }
+  };
+}
+
+// ── End / Cleanup ─────────────────────────────────────
+function endConversation() {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+  cleanUp();
+  setStatus(TEXT.chat_ended);
+  setControlsLabel(TEXT.tap_to_start_again);
+
+  setTimeout(() => {
+    if (window.opener) {
+      window.close();
+    } else if (window.parent !== window) {
+      window.parent.postMessage({ type: 'mina-close' }, '*');
+    }
+  }, 500);
+}
+
+function cleanUp() {
+  isConnected = false;
+  isSpeaking  = false;
+  micBtn.classList.remove('active');
+  micBtn.disabled = false;
+  nextPlayTime = 0;
+  typingIndicator.classList.remove('visible');
+
+  if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
+  if (sourceNode)      { sourceNode.disconnect(); sourceNode = null; }
+  if (silentGainNode)  { silentGainNode.disconnect(); silentGainNode = null; }
+  if (mediaStream)     { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (inputContext && inputContext.state !== 'closed') {
+    inputContext.close().catch(() => {});
+    inputContext = null;
+  }
+  if (outputContext && outputContext.state !== 'closed') {
+    outputContext.close().catch(() => {});
+    outputContext = null;
+  }
+  ws = null;
+  agentMsgEl = null;
+  userMsgEl  = null;
+  resetVisualizer();
+}
+
+// ── UI helpers ────────────────────────────────────────
+function setStatus(text) {
+  statusText.textContent = text;
+}
+
+function setControlsLabel(text) {
+  controlsLabel.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    ${text}`;
+}
+
+function addMessage(role, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const label = role === 'agent' ? TEXT.welcome_label : TEXT.user_label;
+  div.innerHTML = `<div class="label">${label}</div><div class="text">${escapeHtml(text)}</div>`;
+  chatFeed.insertBefore(div, typingIndicator);
+  scrollToBottom();
+  return div;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function scrollToBottom() {
+  requestAnimationFrame(() => chatArea.scrollTop = chatArea.scrollHeight);
+}
+
+function updateVisualizer(level) {
+  const c = Math.min(level, 1);
+  bars.forEach((bar, i) => {
+    const offset = Math.sin(Date.now() / 140 + i * 0.6) * 0.3 + 0.5;
+    bar.style.height = (6 + c * offset * 20) + 'px';
+  });
+}
+
+function resetVisualizer() {
+  bars.forEach(b => { b.style.height = '6px'; });
+}
+
+// ── Audio utils ───────────────────────────────────────
+function float32ToPcm16(f32) {
+  const pcm = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) {
+    const s = Math.max(-1, Math.min(1, f32[i]));
+    pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  return pcm;
+}
+
+function resampleFloat32(input, fromRate, toRate) {
+  if (fromRate === toRate) return input;
+  const ratio = toRate / fromRate;
+  const newLen = Math.max(1, Math.round(input.length * ratio));
+  const out = new Float32Array(newLen);
+  for (let i = 0; i < newLen; i++) {
+    const srcIdx = i / ratio;
+    const idx = Math.floor(srcIdx);
+    const frac = srcIdx - idx;
+    const s0 = input[Math.min(idx, input.length - 1)];
+    const s1 = input[Math.min(idx + 1, input.length - 1)];
+    out[i] = s0 + frac * (s1 - s0);
+  }
+  return out;
+}
+
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+function base64ToArrayBuffer(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+</script>
+</body>
+</html>
