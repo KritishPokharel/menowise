@@ -16,12 +16,11 @@ npm install
 npm run start
 ```
 
-Useful commands:
+Useful commands (Currently optimized for ios and android):
 
 ```bash
 npm run ios
 npm run android
-npm run web
 npm run typecheck
 ```
 
