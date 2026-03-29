@@ -1,6 +1,6 @@
 # MenoWise
 
-MenoWise is a multilingual menopause support app built with React Native on the frontend and Python Flask services on the backend. It combines daily check-ins, insights, community support, and an AI voice/chat companion into one experience to help women to help women prepare better for this.
+MenoWise is a multilingual menopause support app built with React Native on the frontend and Python Flask services on the backend with GPT models used as LLM. It combines daily check-ins, insights, community support, and an AI voice/chat companion into one experience to help women to help women prepare better for this.
 
 ## Setup
 
@@ -61,7 +61,7 @@ python3 backend/get_relevant_articles.py
 
 Note: the relevant-articles script in this repo is named `get_relevant_articles.py`.
 
-### 6. Build the insights cache from the PDF
+### 6. Build the insights cache from the PDF (If doing locally and not using supabase)
 
 ```bash
 npm run build:insights-cache
